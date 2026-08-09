@@ -15,54 +15,83 @@ Current stable capabilities include:
 
 - responsive Blogger post cards for desktop and mobile
 - dynamic blog title and Blogger meta description
-- English-only template UI/source strings
+- English-only Blogger template UI/source strings
 - canonical Blogger permalink strategy
-- primary semantic silo based on the first Blogger label
-- same-silo related posts and contextual internal linking
-- BlogPosting `articleSection` from the primary silo
+- first Blogger label as the Primary Semantic Silo
+- precomputed symbolic content graph with safe Blogger-feed fallback
+- contextual internal linking from graph relationships
+- BlogPosting `articleSection` from the Primary Silo
 - breadcrumbs, TOC, author box, sharing and native comments
 - Popular Posts on feed/archive-style pages
 - social metadata and image SEO foundations
-- optional precomputed symbolic graph generator
+- no paid AI API, embeddings or vector database required
 
 ## Silo rule in v0.1
 
-The first Blogger label is treated as the **Primary Silo**.
+The first Blogger label is always treated as the **Primary Silo**.
 
 ```text
 Clean Blogger Permalink
         +
 Primary Label / Silo
         +
-Same-Silo Internal Links
+Precomputed Relationships
+        +
+Contextual Internal Links
         +
 Breadcrumb
         +
 articleSection Schema
 ```
 
+Content types, facets and entity candidates are supporting semantic signals. They do not replace the Primary Silo.
+
 The theme does not fake or rewrite Blogger permalinks with JavaScript.
 
-## Optional precomputed intelligence
+## Hybrid intelligence runtime
 
-The repository also contains an experimental, fully free symbolic graph pipeline:
+v0.1 now uses a self-contained hybrid runtime:
+
+1. The Blogger XML derives the graph path from the current blog hostname.
+2. It requests that blog's precomputed `sia-graph.json` from the public GitHub repository.
+3. If the graph exists and contains the current post, the related engine uses precomputed scores and reasons.
+4. If the graph is unavailable, invalid, or does not contain the current post, the engine falls back to Blogger JSON feeds.
+
+The browser adapter is embedded inside the official Blogger XML, so the live template does not depend on an externally hosted JavaScript file.
+
+## Precomputed graph pipeline
+
+Main components:
 
 - `generator/generate_graph.py`
 - `assets/sia-graph-adapter-v0.1.js`
+- `scripts/activate_hybrid_graph.py`
 - `.github/workflows/sia-cron.yml`
 
-The generator reads the public Blogger JSON feed and can publish `public/sia-graph.json` through GitHub Pages. No paid AI API, embeddings, vector database, Node.js server, or private runtime is required.
+The workflow runs on schedule, manual dispatch, and relevant source changes. It reads the public Blogger JSON feed, generates the graph, validates the graph and Blogger XML, and commits the current graph back to the repository.
 
-The current stable theme works without this graph. Graph integration is progressive enhancement and must always fall back safely to Blogger-native data.
+Graph files use a hostname-based layout:
 
-## Configure the graph generator
+```text
+public/graphs/<blog-hostname>/sia-graph.json
+```
+
+Example test graph:
+
+```text
+public/graphs/dilipnachna.blogspot.com/sia-graph.json
+```
+
+This keeps the Blogger theme universal: the current hostname selects its own graph. If a hostname does not yet have a graph, Blogger fallback mode remains available.
+
+## Configure a blog graph
 
 Edit `sia.config.json`:
 
 ```json
 {
   "blog_url": "https://yourblog.blogspot.com",
-  "output": "public/sia-graph.json"
+  "output": "public/graphs/yourblog.blogspot.com/sia-graph.json"
 }
 ```
 
@@ -74,13 +103,11 @@ python generator/generate_graph.py --config sia.config.json
 
 ## GitHub Pages
 
-The included workflow can generate and deploy:
+GitHub Pages is an optional mirror, not a runtime requirement. The workflow detects whether Pages is enabled. If it is enabled, the `public/` directory can also be deployed through Pages; if it is not enabled, the committed Raw GitHub graph remains the primary graph source.
 
-`public/sia-graph.json`
+## Current test status
 
-A typical Pages URL is:
-
-`https://USERNAME.github.io/REPOSITORY/sia-graph.json`
+The current test source is `dilipnachna.blogspot.com`. Its graph is generated successfully. With only one published post currently present in the public feed, the graph can validate precomputed mode but cannot yet produce sibling related-post relationships. As more posts are published, scheduled graph refreshes can populate those relationships automatically.
 
 ## Version policy
 
