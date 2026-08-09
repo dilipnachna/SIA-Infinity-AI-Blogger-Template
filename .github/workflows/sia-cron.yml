@@ -8,11 +8,13 @@ on:
     branches: ["main"]
     paths:
       - "generator/**"
+      - "assets/**"
+      - "scripts/**"
       - "sia.config.json"
       - ".github/workflows/sia-cron.yml"
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -26,26 +28,53 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
+      - name: Activate v0.1 hybrid graph integration
+        run: |
+          python scripts/activate_hybrid_graph.py
+
+      - name: Publish browser adapter into Pages artifact
+        run: |
+          mkdir -p public
+          cp assets/sia-graph-adapter-v0.1.js public/sia-graph-adapter-v0.1.js
+
       - name: Generate SIA graph
         run: |
           python generator/generate_graph.py --config sia.config.json
 
-      - name: Validate generated JSON
+      - name: Validate v0.1 outputs
         run: |
-          python -m json.tool public/sia-graph.json > /dev/null
+          python -m json.tool public/graphs/dilipnachna.blogspot.com/sia-graph.json > /dev/null
+          python -m py_compile generator/generate_graph.py
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          ET.parse('theme/SIA-Infinity-AI-Blogger-Template-v0.1.xml')
+          print('Theme XML validation OK')
+          PY
+
+      - name: Commit normalized v0.1 source when needed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add theme/SIA-Infinity-AI-Blogger-Template-v0.1.xml generator/generate_graph.py
+          if git diff --cached --quiet; then
+            echo "Source already normalized"
+          else
+            git commit -m "Activate SIA v0.1 hybrid precomputed graph"
+            git push
+          fi
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: public
 
