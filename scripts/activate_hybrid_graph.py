@@ -3,7 +3,8 @@
 
 Design rules:
 - first Blogger label = Primary Silo
-- adapter is embedded in the Blogger XML (no external JS runtime dependency)
+- template source remains English-only
+- adapter is embedded in Blogger XML (no external JS runtime dependency)
 - graph JSON is loaded from Raw GitHub by current blog hostname
 - graph failure automatically falls back to Blogger feeds
 - a valid graph with zero related posts is still valid precomputed mode
@@ -62,6 +63,39 @@ def patch_adapter(text: str) -> str:
         "        if (!items.length) throw new Error('no-precomputed-related');\n\n",
         ""
     )
+
+    # Keep the Blogger template source English-only. Unicode-language content
+    # can still be tokenized; the runtime simply does not hardcode language-
+    # specific stopwords inside the XML.
+    normalize_re = re.compile(
+        r"  function normalize\(s\) \{.*?\n  \}\n\n  function tokens\(s\) \{.*?\n  \}\n\n  function setStatus",
+        re.S,
+    )
+    neutral = r'''  function normalize(s) {
+    return String(s || '')
+      .toLowerCase()
+      .replace(/[\u200b-\u200d\ufeff]/g, '')
+      .replace(/[,.!?;:()[\]{}"'“”‘’/\\|_\-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function tokens(s) {
+    var stop = {
+      'the':1,'a':1,'an':1,'of':1,'in':1,'on':1,'for':1,'to':1,'and':1,'or':1,
+      'but':1,'with':1,'from':1,'by':1,'at':1,'as':1,'is':1,'are':1,'was':1,
+      'were':1,'be':1,'been':1,'this':1,'that':1,'these':1,'those':1,
+      'your':1,'you':1,'we':1,'our':1,'best':1,'latest':1
+    };
+    return normalize(s).split(' ').filter(function (w) {
+      return w.length > 1 && !stop[w];
+    });
+  }
+
+  function setStatus'''
+    if normalize_re.search(text):
+        text = normalize_re.sub(lambda _m: neutral, text, count=1)
+
     return text
 
 
@@ -170,9 +204,11 @@ def main():
 
     ET.parse(THEME)
     compile(generator, str(GENERATOR), "exec")
+    if re.search(r"[\u0900-\u097F]", theme):
+        raise RuntimeError("Universal Blogger XML contains Devanagari source text")
     if "no-precomputed-related" in adapter:
         raise RuntimeError("Adapter still downgrades empty valid graphs")
-    print("SIA v0.1 self-contained hybrid graph runtime validated")
+    print("SIA v0.1 self-contained English-only hybrid graph runtime validated")
 
 
 if __name__ == "__main__":
