@@ -3,7 +3,7 @@ name: Build SIA Intelligence Graph
 on:
   workflow_dispatch:
   schedule:
-    - cron: "17 */12 * * *"
+    - cron: "17 * * * *"
   push:
     branches: ["main"]
     paths:
