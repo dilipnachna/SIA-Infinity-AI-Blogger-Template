@@ -58,8 +58,6 @@ def patch_generator(text: str) -> str:
 
 
 def patch_adapter(text: str) -> str:
-    # A graph containing the current post but no related siblings is still a
-    # successful precomputed result. Do not downgrade it to feed fallback.
     text = text.replace(
         "        if (!items.length) throw new Error('no-precomputed-related');\n\n",
         ""
@@ -123,8 +121,6 @@ def runtime_block(adapter_source: str) -> str:
 
 
 def patch_theme(text: str, adapter_source: str) -> str:
-    # Remove the legacy direct label-feed related engine. Hybrid adapter owns
-    # both precomputed graph rendering and feed fallback.
     start = '      let labelsNode = document.getElementById("post-labels-data");'
     end = '      fetch("/feeds/posts/default?alt=json&max-results=5")'
     if start in text and end in text:
@@ -146,14 +142,13 @@ def patch_theme(text: str, adapter_source: str) -> str:
     if old_heading in text:
         text = text.replace(old_heading, new_heading, 1)
 
-    # Replace any previous v0.1 runtime block (including external-script builds).
     runtime_re = re.compile(
         r"\n  <b:if cond='data:view\.isPost'>\n    <!-- SIA HYBRID GRAPH RUNTIME v0\.1 -->.*?\n  </b:if>\n(?=\n</body>)",
         re.S,
     )
     block = runtime_block(adapter_source)
     if runtime_re.search(text):
-        text = runtime_re.sub(block, text, count=1)
+        text = runtime_re.sub(lambda _m: block, text, count=1)
     else:
         text = text.replace("</body>", block + "\n</body>", 1)
 
