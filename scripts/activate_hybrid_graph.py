@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Apply the stable v0.1 hybrid graph integration to the Blogger theme.
+"""Normalize the stable SIA-Infinity Blogger v0.1 hybrid graph runtime.
 
-This patch is intentionally idempotent. It also keeps the v0.1 silo contract:
-the first Blogger label is the Primary Silo. Content types/facets remain
-supporting semantic signals, not replacements for the primary silo.
+Design rules:
+- first Blogger label = Primary Silo
+- adapter is embedded in the Blogger XML (no external JS runtime dependency)
+- graph JSON is loaded from Raw GitHub by current blog hostname
+- graph failure automatically falls back to Blogger feeds
+- a valid graph with zero related posts is still valid precomputed mode
 """
 from pathlib import Path
 import re
@@ -11,10 +14,13 @@ import xml.etree.ElementTree as ET
 
 THEME = Path("theme/SIA-Infinity-AI-Blogger-Template-v0.1.xml")
 GENERATOR = Path("generator/generate_graph.py")
+ADAPTER = Path("assets/sia-graph-adapter-v0.1.js")
 
-PAGES_BASE = "https://dilipnachna.github.io/SIA-Infinity-AI-Blogger-Template"
-ADAPTER_URL = PAGES_BASE + "/sia-graph-adapter-v0.1.js"
-GRAPH_BASE = PAGES_BASE + "/graphs/"
+RAW_GRAPH_BASE = (
+    "https://raw.githubusercontent.com/dilipnachna/"
+    "SIA-Infinity-AI-Blogger-Template/main/public/graphs/"
+)
+MARKER = "SIA HYBRID GRAPH RUNTIME v0.1"
 
 
 def patch_generator(text: str) -> str:
@@ -51,39 +57,23 @@ def patch_generator(text: str) -> str:
     raise RuntimeError("Generator silo function did not match expected v0.1 source")
 
 
-def patch_theme(text: str) -> str:
-    # Remove the older direct same-label related-post fetch. The hybrid adapter
-    # now owns related rendering and provides its own Blogger fallback.
-    start = '      let labelsNode = document.getElementById("post-labels-data");'
-    end = '      fetch("/feeds/posts/default?alt=json&max-results=5")'
-    if start in text and end in text:
-        before, rest = text.split(start, 1)
-        legacy, after = rest.split(end, 1)
-        replacement = '''      let labelsNode = document.getElementById("post-labels-data");
-      let labelsText = labelsNode ? labelsNode.innerText.trim() : "";
-      if(labelsText !== "") {
-          let primarySilo = labelsText.split(",")[0].trim();
-          let relatedHeading = document.getElementById("silo-related-heading");
-          if(relatedHeading) relatedHeading.textContent = "More From " + primarySilo;
-      }
+def patch_adapter(text: str) -> str:
+    # A graph containing the current post but no related siblings is still a
+    # successful precomputed result. Do not downgrade it to feed fallback.
+    text = text.replace(
+        "        if (!items.length) throw new Error('no-precomputed-related');\n\n",
+        ""
+    )
+    return text
 
-'''
-        text = before + replacement + end + after
 
-    # Add a lightweight runtime status target for debugging/verification.
-    old_heading = "                  <h3 id='silo-related-heading'>More From This Silo</h3>\n                  <ul class='widget-list' id='related-posts-list'>"
-    new_heading = "                  <h3 id='silo-related-heading'>More From This Silo</h3>\n                  <div aria-live='polite' id='sia-hybrid-status' style='font-size:11px;color:#64748b;margin:-6px 0 9px;'></div>\n                  <ul class='widget-list' id='related-posts-list'>"
-    if old_heading in text:
-        text = text.replace(old_heading, new_heading, 1)
-
-    marker = "SIA HYBRID GRAPH RUNTIME v0.1"
-    if marker not in text:
-        runtime = f'''\n  <b:if cond='data:view.isPost'>
-    <!-- {marker} -->
+def runtime_block(adapter_source: str) -> str:
+    return f'''\n  <b:if cond='data:view.isPost'>
+    <!-- {MARKER} -->
     <script>
     //<![CDATA[
     window.SIA_CONFIG = window.SIA_CONFIG || {{}};
-    window.SIA_CONFIG.graphUrl = '{GRAPH_BASE}' + window.location.hostname + '/sia-graph.json';
+    window.SIA_CONFIG.graphUrl = '{RAW_GRAPH_BASE}' + window.location.hostname + '/sia-graph.json';
     window.SIA_CONFIG.maxRelated = 6;
     window.SIA_CONFIG.relatedTarget = 'related-posts-list';
     window.SIA_CONFIG.statusTarget = 'sia-hybrid-status';
@@ -93,6 +83,7 @@ def patch_theme(text: str) -> str:
       var detail = event && event.detail ? event.detail : {{}};
       var related = Array.isArray(detail.related) ? detail.related : [];
       if (!related.length) return;
+
       var body = document.getElementById('post-body-content');
       if (!body || body.querySelector('.sia-contextual-link')) return;
       var paragraphs = body.querySelectorAll('p');
@@ -106,41 +97,87 @@ def patch_theme(text: str) -> str:
 
       var box = document.createElement('div');
       box.className = 'in-article-link sia-contextual-link';
+      box.setAttribute('data-sia-mode', detail.mode || 'unknown');
+
       var prefix = document.createTextNode('More in ' + primarySilo + ': ');
       var link = document.createElement('a');
       link.href = item.url;
       link.textContent = item.title;
       if (item.score !== undefined) link.setAttribute('data-sia-score', item.score);
       if (item.reasons && item.reasons.length) link.setAttribute('data-sia-reasons', item.reasons.join(','));
+
       box.appendChild(prefix);
       box.appendChild(link);
       paragraphs[1].insertAdjacentElement('afterend', box);
     }});
     //]]>
     </script>
-    <script defer='defer' src='{ADAPTER_URL}'></script>
+
+    <script>
+    //<![CDATA[
+{adapter_source}
+    //]]>
+    </script>
   </b:if>
 '''
-        text = text.replace("</body>", runtime + "\n</body>", 1)
 
-    # Keep the source marker factual.
+
+def patch_theme(text: str, adapter_source: str) -> str:
+    # Remove the legacy direct label-feed related engine. Hybrid adapter owns
+    # both precomputed graph rendering and feed fallback.
+    start = '      let labelsNode = document.getElementById("post-labels-data");'
+    end = '      fetch("/feeds/posts/default?alt=json&max-results=5")'
+    if start in text and end in text:
+        before, rest = text.split(start, 1)
+        _legacy, after = rest.split(end, 1)
+        replacement = '''      let labelsNode = document.getElementById("post-labels-data");
+      let labelsText = labelsNode ? labelsNode.innerText.trim() : "";
+      if(labelsText !== "") {
+          let primarySilo = labelsText.split(",")[0].trim();
+          let relatedHeading = document.getElementById("silo-related-heading");
+          if(relatedHeading) relatedHeading.textContent = "More From " + primarySilo;
+      }
+
+'''
+        text = before + replacement + end + after
+
+    old_heading = "                  <h3 id='silo-related-heading'>More From This Silo</h3>\n                  <ul class='widget-list' id='related-posts-list'>"
+    new_heading = "                  <h3 id='silo-related-heading'>More From This Silo</h3>\n                  <div aria-live='polite' id='sia-hybrid-status' style='font-size:11px;color:#64748b;margin:-6px 0 9px;'></div>\n                  <ul class='widget-list' id='related-posts-list'>"
+    if old_heading in text:
+        text = text.replace(old_heading, new_heading, 1)
+
+    # Replace any previous v0.1 runtime block (including external-script builds).
+    runtime_re = re.compile(
+        r"\n  <b:if cond='data:view\.isPost'>\n    <!-- SIA HYBRID GRAPH RUNTIME v0\.1 -->.*?\n  </b:if>\n(?=\n</body>)",
+        re.S,
+    )
+    block = runtime_block(adapter_source)
+    if runtime_re.search(text):
+        text = runtime_re.sub(block, text, count=1)
+    else:
+        text = text.replace("</body>", block + "\n</body>", 1)
+
     text = text.replace(
         "Primary Silo + canonical permalink strategy + English-only source",
-        "Primary Silo + hybrid precomputed graph + safe Blogger fallback + canonical permalink strategy + English-only source"
+        "Primary Silo + hybrid precomputed graph + safe Blogger fallback + canonical permalink strategy + English-only source",
     )
     return text
 
 
 def main():
-    theme = patch_theme(THEME.read_text(encoding="utf-8"))
     generator = patch_generator(GENERATOR.read_text(encoding="utf-8"))
+    adapter = patch_adapter(ADAPTER.read_text(encoding="utf-8"))
+    theme = patch_theme(THEME.read_text(encoding="utf-8"), adapter)
 
-    THEME.write_text(theme, encoding="utf-8")
     GENERATOR.write_text(generator, encoding="utf-8")
+    ADAPTER.write_text(adapter, encoding="utf-8")
+    THEME.write_text(theme, encoding="utf-8")
 
     ET.parse(THEME)
     compile(generator, str(GENERATOR), "exec")
-    print("SIA v0.1 hybrid graph patch applied and validated")
+    if "no-precomputed-related" in adapter:
+        raise RuntimeError("Adapter still downgrades empty valid graphs")
+    print("SIA v0.1 self-contained hybrid graph runtime validated")
 
 
 if __name__ == "__main__":
