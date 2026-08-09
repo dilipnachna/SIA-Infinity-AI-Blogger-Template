@@ -1,0 +1,14 @@
+{
+  "blog_url": "https://sia-infinity.blogspot.com",
+  "output": "public/sia-graph.json",
+  "max_posts": 1000,
+  "entity_min_occurrences": 2,
+  "related_limit": 8,
+  "related_min_score": 10,
+  "compact": true,
+  "aliases": {
+    "content_types": {},
+    "facets": {},
+    "entities": {}
+  }
+}
