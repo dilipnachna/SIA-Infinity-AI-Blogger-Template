@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html b:css='false' b:defaultwidgetversion='2' b:layoutsVersion='3' b:responsive='true' b:version='2' xmlns='http://www.w3.org/1999/xhtml' xmlns:b='http://www.google.com/2005/gml/b' xmlns:data='http://www.google.com/2005/gml/data' xmlns:expr='http://www.google.com/2005/gml/expr'>
 <head>
-  <!-- SIA-Infinity AI Blogger Template v0.1 Universal Stable Base | Primary Silo + canonical permalink strategy + English-only source -->
+  <!-- SIA-Infinity AI Blogger Template v0.1 Universal Stable Base | Primary Silo + hybrid precomputed graph + safe Blogger fallback + canonical permalink strategy + English-only source -->
   <meta charset='utf-8'/>
   <meta content='width=device-width, initial-scale=1' name='viewport'/>
   <title><data:view.title.escaped/></title>
@@ -749,6 +749,7 @@
               <div class='widget-area'>
                 <div class='widget-box' style='border: none; padding: 0; box-shadow: none;'>
                   <h3 id='silo-related-heading'>More From This Silo</h3>
+                  <div aria-live='polite' id='sia-hybrid-status' style='font-size:11px;color:#64748b;margin:-6px 0 9px;'></div>
                   <ul class='widget-list' id='related-posts-list'>
                     <li>Loading...</li>
                   </ul>
@@ -1055,70 +1056,10 @@
 
       let labelsNode = document.getElementById("post-labels-data");
       let labelsText = labelsNode ? labelsNode.innerText.trim() : "";
-      let siloNode = document.getElementById("sia-primary-silo");
-
       if(labelsText !== "") {
-          let labelArray = labelsText.split(",").map(function(x){ return x.trim(); }).filter(Boolean);
-          let primarySilo = labelArray[0];
-          let firstLabel = encodeURIComponent(primarySilo);
-
+          let primarySilo = labelsText.split(",")[0].trim();
           let relatedHeading = document.getElementById("silo-related-heading");
           if(relatedHeading) relatedHeading.textContent = "More From " + primarySilo;
-
-          fetch("/feeds/posts/default/-/" + firstLabel + "?alt=json&max-results=9")
-          .then(res => res.json())
-          .then(data => {
-              let posts = data.feed.entry;
-              let list = document.getElementById("related-posts-list");
-              if(!posts) {
-                  if(list) list.innerHTML = "<li>No other posts found in this silo.</li>";
-                  return;
-              }
-
-              let currentUrl = window.location.href.split("?")[0].split("#")[0].replace(/^https?:\/\//,'').replace(/\/$/,'');
-              let seen = new Set();
-              let relatedHtml = "";
-              let inArticleAdded = false;
-              let relatedCount = 0;
-
-              posts.forEach(post => {
-                  let alt = (post.link || []).find(function(l){ return l.rel === "alternate"; });
-                  if(!alt || !alt.href) return;
-
-                  let link = alt.href;
-                  let cleanLink = link.split("?")[0].split("#")[0].replace(/^https?:\/\//,'').replace(/\/$/,'');
-                  if(cleanLink === currentUrl || seen.has(cleanLink) || relatedCount >= 6) return;
-
-                  seen.add(cleanLink);
-                  relatedCount++;
-                  let title = post.title && post.title.$t ? post.title.$t : "Related Article";
-
-                  if(!inArticleAdded) {
-                      let paragraphs = document.querySelectorAll("#post-body-content p");
-                      if(paragraphs.length > 1) {
-                          let injectHtml = "<div class='in-article-link'>More in <strong>" +
-                              primarySilo.replace(/</g,"&lt;") +
-                              "</strong>: <a href='" + link + "'>" +
-                              title.replace(/</g,"&lt;") + "</a></div>";
-                          paragraphs[1].insertAdjacentHTML("afterend", injectHtml);
-                          inArticleAdded = true;
-                      }
-                  }
-
-                  relatedHtml += "<li><a href='" + link + "'>" +
-                      title.replace(/</g,"&lt;") + "</a></li>";
-              });
-
-              if(list) {
-                  list.innerHTML = relatedHtml !== ""
-                    ? relatedHtml
-                    : "<li>No other posts found in this silo.</li>";
-              }
-          })
-          .catch(function() {
-              let list = document.getElementById("related-posts-list");
-              if(list) list.innerHTML = "<li>Could not load silo posts.</li>";
-          });
       }
 
       fetch("/feeds/posts/default?alt=json&max-results=5")
@@ -1154,5 +1095,49 @@
     //]]>
     </script>
   </b:if>
+
+  <b:if cond='data:view.isPost'>
+    <!-- SIA HYBRID GRAPH RUNTIME v0.1 -->
+    <script>
+    //<![CDATA[
+    window.SIA_CONFIG = window.SIA_CONFIG || {};
+    window.SIA_CONFIG.graphUrl = 'https://dilipnachna.github.io/SIA-Infinity-AI-Blogger-Template/graphs/' + window.location.hostname + '/sia-graph.json';
+    window.SIA_CONFIG.maxRelated = 6;
+    window.SIA_CONFIG.relatedTarget = 'related-posts-list';
+    window.SIA_CONFIG.statusTarget = 'sia-hybrid-status';
+    window.SIA_CONFIG.currentLabelsTarget = 'post-labels-data';
+
+    window.addEventListener('sia:hybrid-ready', function(event) {
+      var detail = event && event.detail ? event.detail : {};
+      var related = Array.isArray(detail.related) ? detail.related : [];
+      if (!related.length) return;
+      var body = document.getElementById('post-body-content');
+      if (!body || body.querySelector('.sia-contextual-link')) return;
+      var paragraphs = body.querySelectorAll('p');
+      if (paragraphs.length < 2) return;
+
+      var labels = document.getElementById('post-labels-data');
+      var primarySilo = labels && labels.textContent
+        ? labels.textContent.split(',')[0].trim()
+        : 'Related';
+      var item = related[0];
+
+      var box = document.createElement('div');
+      box.className = 'in-article-link sia-contextual-link';
+      var prefix = document.createTextNode('More in ' + primarySilo + ': ');
+      var link = document.createElement('a');
+      link.href = item.url;
+      link.textContent = item.title;
+      if (item.score !== undefined) link.setAttribute('data-sia-score', item.score);
+      if (item.reasons && item.reasons.length) link.setAttribute('data-sia-reasons', item.reasons.join(','));
+      box.appendChild(prefix);
+      box.appendChild(link);
+      paragraphs[1].insertAdjacentElement('afterend', box);
+    });
+    //]]>
+    </script>
+    <script defer='defer' src='https://dilipnachna.github.io/SIA-Infinity-AI-Blogger-Template/sia-graph-adapter-v0.1.js'></script>
+  </b:if>
+
 </body>
 </html>

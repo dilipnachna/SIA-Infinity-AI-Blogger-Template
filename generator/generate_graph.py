@@ -333,16 +333,12 @@ def detect_entities(post, candidates, preferred, custom_aliases):
 
 
 def choose_silo(labels, content_types, facets, content_lookup, facet_lookup):
-    if content_types:
-        return content_types[0]
-
-    for label in labels:
-        key = canonical_phrase(label)
-        if key and key not in content_lookup and key not in facet_lookup:
-            return label.strip()
-
+    # v0.1 contract: the first Blogger label is always the Primary Silo.
+    # Content types and facets are semantic supporting signals only.
     if labels:
         return labels[0].strip()
+    if content_types:
+        return content_types[0]
     if facets:
         return facets[0]
     return "general"
