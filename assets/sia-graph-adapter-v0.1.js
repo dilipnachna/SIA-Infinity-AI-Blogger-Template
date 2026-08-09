@@ -52,7 +52,7 @@
     return String(s || '')
       .toLowerCase()
       .replace(/[\u200b-\u200d\ufeff]/g, '')
-      .replace(/[।,.!?;:()[\]{}"'“”‘’/\\|_\-]+/g, ' ')
+      .replace(/[,.!?;:()[\]{}"'“”‘’/\\|_\-]+/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
   }
@@ -60,8 +60,9 @@
   function tokens(s) {
     var stop = {
       'the':1,'a':1,'an':1,'of':1,'in':1,'on':1,'for':1,'to':1,'and':1,'or':1,
-      'का':1,'की':1,'के':1,'और':1,'में':1,'पर':1,'से':1,'को':1,'है':1,'हैं':1,
-      'यह':1,'ये':1,'एक':1,'लिए':1,'best':1,'latest':1
+      'but':1,'with':1,'from':1,'by':1,'at':1,'as':1,'is':1,'are':1,'was':1,
+      'were':1,'be':1,'been':1,'this':1,'that':1,'these':1,'those':1,
+      'your':1,'you':1,'we':1,'our':1,'best':1,'latest':1
     };
     return normalize(s).split(' ').filter(function (w) {
       return w.length > 1 && !stop[w];
