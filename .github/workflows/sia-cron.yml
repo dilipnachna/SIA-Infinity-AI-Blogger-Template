@@ -25,6 +25,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      pages_enabled: ${{ steps.pages_check.outputs.enabled }}
 
     steps:
       - name: Checkout repository
@@ -35,50 +37,80 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Activate v0.1 hybrid graph integration
+      - name: Normalize v0.1 hybrid graph runtime
         run: |
           python scripts/activate_hybrid_graph.py
-
-      - name: Publish browser adapter into Pages artifact
-        run: |
-          mkdir -p public
-          cp assets/sia-graph-adapter-v0.1.js public/sia-graph-adapter-v0.1.js
 
       - name: Generate SIA graph
         run: |
           python generator/generate_graph.py --config sia.config.json
+
+      - name: Publish adapter mirror
+        run: |
+          mkdir -p public
+          cp assets/sia-graph-adapter-v0.1.js public/sia-graph-adapter-v0.1.js
 
       - name: Validate v0.1 outputs
         run: |
           python -m json.tool public/graphs/dilipnachna.blogspot.com/sia-graph.json > /dev/null
           python -m py_compile generator/generate_graph.py
           python - <<'PY'
+          import json
           import xml.etree.ElementTree as ET
+          graph = json.load(open('public/graphs/dilipnachna.blogspot.com/sia-graph.json', encoding='utf-8'))
+          assert graph['sia']['format'] == 'sia-symbolic-graph'
           ET.parse('theme/SIA-Infinity-AI-Blogger-Template-v0.1.xml')
-          print('Theme XML validation OK')
+          print('Graph and Blogger XML validation OK')
           PY
 
-      - name: Commit normalized v0.1 source when needed
+      - name: Commit current graph and normalized v0.1 source
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add theme/SIA-Infinity-AI-Blogger-Template-v0.1.xml generator/generate_graph.py
+          git add \
+            theme/SIA-Infinity-AI-Blogger-Template-v0.1.xml \
+            generator/generate_graph.py \
+            assets/sia-graph-adapter-v0.1.js \
+            public/sia-graph-adapter-v0.1.js \
+            public/graphs/dilipnachna.blogspot.com/sia-graph.json
           if git diff --cached --quiet; then
-            echo "Source already normalized"
+            echo "Graph and source are already current"
           else
-            git commit -m "Activate SIA v0.1 hybrid precomputed graph"
+            git commit -m "Refresh SIA v0.1 hybrid intelligence graph"
             git push
           fi
 
+      - name: Detect optional GitHub Pages
+        id: pages_check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          code=$(curl -sS -o /tmp/pages.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages")
+          if [ "$code" = "200" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "GitHub Pages is enabled; publishing mirror."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "GitHub Pages is not enabled; Raw GitHub graph remains active."
+          fi
+
       - name: Configure GitHub Pages
+        if: steps.pages_check.outputs.enabled == 'true'
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
+        if: steps.pages_check.outputs.enabled == 'true'
         uses: actions/upload-pages-artifact@v4
         with:
           path: public
 
   deploy:
+    if: needs.build.outputs.pages_enabled == 'true'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
