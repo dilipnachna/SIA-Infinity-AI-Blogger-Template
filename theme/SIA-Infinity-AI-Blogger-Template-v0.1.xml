@@ -7,12 +7,25 @@
   <meta content='width=device-width, initial-scale=1' name='viewport'/>
   <meta content='SIA-Infinity-AI-Blogger-Template-v0.1' name='sia-template'/>
   <meta content='0.1' name='sia-template-version'/>
+  <meta content='dilipnachna/SIA-Infinity-AI-Blogger-Template' name='sia-community-repository'/>
   <title><data:view.title.escaped/></title>
   
-  <meta content='max-image-preview:large' name='robots'/>
+  <meta content='max-image-preview:large,max-snippet:-1,max-video-preview:-1' name='robots'/>
 
   <!-- Blogger essential head: canonical, feeds, favicon, etc. -->
   <b:include data='blog' name='all-head-content'/>
+
+  <!-- SIA WebSite JSON-LD v0.1 -->
+  <b:if cond='data:view.isHomepage'>
+    <script type='application/ld+json'>
+    {
+      &quot;@context&quot;: &quot;https://schema.org&quot;,
+      &quot;@type&quot;: &quot;WebSite&quot;,
+      &quot;name&quot;: &quot;<data:blog.title.escaped/>&quot;,
+      &quot;url&quot;: &quot;<data:blog.homepageUrl/>&quot;
+    }
+    </script>
+  </b:if>
 
   <!-- Complete SEO + Open Graph + Twitter/X social metadata -->
   <meta expr:content='data:blog.title' property='og:site_name'/>
@@ -53,6 +66,8 @@
     header { background: #fff; padding: 25px 20px; text-align: center; border-bottom: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
     header h1 { margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -0.5px;}
     header h1 a { color: #0f172a; }
+    header .site-title { margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -0.5px; }
+    header .site-title a { color: #0f172a; }
     .ai-badge { background: transparent; color: #64748b; padding: 0; border-radius: 0; font-size: 14px; display: block; margin-top: 10px; border: 0; font-weight: 500; line-height: 1.5;}
     .blog-description { max-width: 760px; margin-left: auto; margin-right: auto; }
     nav { margin-top: 20px; display: flex; justify-content: center; gap: 25px; font-weight: 600; flex-wrap: wrap; }
@@ -322,7 +337,12 @@
 <body>
 
   <header>
-    <h1><a expr:href='data:blog.homepageUrl'><data:blog.title/></a></h1>
+    <!-- SIA Adaptive Heading Architecture v0.1 -->
+    <b:if cond='data:view.isSingleItem'>
+      <div class='site-title'><a expr:href='data:blog.homepageUrl'><data:blog.title/></a></div>
+    <b:else/>
+      <h1><a expr:href='data:blog.homepageUrl'><data:blog.title/></a></h1>
+    </b:if>
     <b:if cond='data:blog.metaDescription'>
       <div class='ai-badge blog-description'><data:blog.metaDescription/></div>
     </b:if>
@@ -632,6 +652,42 @@
               </script>
             </b:if>
 
+            <!-- SIA BreadcrumbList JSON-LD v0.1 -->
+            <b:if cond='data:view.isPost'>
+              <script type='application/ld+json'>
+              {
+                &quot;@context&quot;: &quot;https://schema.org&quot;,
+                &quot;@type&quot;: &quot;BreadcrumbList&quot;,
+                &quot;itemListElement&quot;: [
+                  {
+                    &quot;@type&quot;: &quot;ListItem&quot;,
+                    &quot;position&quot;: 1,
+                    &quot;name&quot;: &quot;Home&quot;,
+                    &quot;item&quot;: &quot;<data:blog.homepageUrl/>&quot;
+                  }<b:if cond='data:post.labels'>,
+                  {
+                    &quot;@type&quot;: &quot;ListItem&quot;,
+                    &quot;position&quot;: 2,
+                    &quot;name&quot;: &quot;<data:post.labels.first.name/>&quot;,
+                    &quot;item&quot;: &quot;<data:post.labels.first.url/>&quot;
+                  },
+                  {
+                    &quot;@type&quot;: &quot;ListItem&quot;,
+                    &quot;position&quot;: 3,
+                    &quot;name&quot;: &quot;<data:post.title.escaped/>&quot;,
+                    &quot;item&quot;: &quot;<data:post.url.canonical/>&quot;
+                  }<b:else/>,
+                  {
+                    &quot;@type&quot;: &quot;ListItem&quot;,
+                    &quot;position&quot;: 2,
+                    &quot;name&quot;: &quot;<data:post.title.escaped/>&quot;,
+                    &quot;item&quot;: &quot;<data:post.url.canonical/>&quot;
+                  }</b:if>
+                ]
+              }
+              </script>
+            </b:if>
+
             <b:if cond='data:view.isPost'>
               <div class='breadcrumb'>
                 <a expr:href='data:blog.homepageUrl'>Home</a> <span>›</span>
@@ -644,7 +700,7 @@
 
             <b:if cond='data:view.isSingleItem'>
               <!-- Full content only on an individual Post/Page -->
-              <h2 class='post-title'><data:post.title/></h2>
+              <h1 class='post-title'><data:post.title/></h1>
 
               <div class='post-meta'>
                 <b:if cond='data:post.author.name'>
@@ -655,17 +711,19 @@
 
               <b:if cond='data:post.featuredImage'>
                 <div class='featured-img-box'>
-                  <img expr:alt='data:post.title' expr:src='resizeImage(data:post.featuredImage, 1200, &quot;1200:675&quot;)'/>
+                  <img decoding='async'
+                       expr:alt='data:post.title'
+                       expr:src='resizeImage(data:post.featuredImage, 1200, &quot;1200:675&quot;)'
+                       expr:srcset='resizeImage(data:post.featuredImage, 320, &quot;320:180&quot;) + &quot; 320w, &quot; + resizeImage(data:post.featuredImage, 480, &quot;480:270&quot;) + &quot; 480w, &quot; + resizeImage(data:post.featuredImage, 640, &quot;640:360&quot;) + &quot; 640w, &quot; + resizeImage(data:post.featuredImage, 960, &quot;960:540&quot;) + &quot; 960w, &quot; + resizeImage(data:post.featuredImage, 1200, &quot;1200:675&quot;) + &quot; 1200w&quot;'
+                       fetchpriority='high'
+                       height='675'
+                       id='sia-featured-image'
+                       loading='eager'
+                       sizes='(max-width: 840px) 100vw, 800px'
+                       width='1200'/>
                 </div>
               </b:if>
 
-              <!-- Manual AdSense Placeholder Above Content: posts only -->
-              <b:if cond='data:view.isPost'>
-                <div class='ad-container'>
-                  <!-- Optional manual ad unit can be placed here -->
-                  Advertisement
-                </div>
-              </b:if>
 
               <div class='post-body' id='post-body-content'>
                 <data:post.body/>
@@ -675,16 +733,16 @@
                 <div class='post-share-box'>
                   <div class='post-share-title'>📤 Share This Post</div>
                   <div class='post-share-buttons'>
-                    <a aria-label='Share on WhatsApp' class='share-btn whatsapp' expr:href='&quot;https://wa.me/?text=&quot; + data:post.title + &quot;%20&quot; + data:post.url' rel='nofollow noopener noreferrer' target='_blank'>WhatsApp</a>
-                    <a aria-label='Share on Facebook' class='share-btn facebook' expr:href='&quot;https://www.facebook.com/sharer/sharer.php?u=&quot; + data:post.url' rel='nofollow noopener noreferrer' target='_blank'>Facebook</a>
-                    <a aria-label='Share on X' class='share-btn xshare' expr:href='&quot;https://twitter.com/intent/tweet?text=&quot; + data:post.title + &quot;&amp;url=&quot; + data:post.url' rel='nofollow noopener noreferrer' target='_blank'>X</a>
-                    <a aria-label='Share on Telegram' class='share-btn telegram' expr:href='&quot;https://t.me/share/url?url=&quot; + data:post.url + &quot;&amp;text=&quot; + data:post.title' rel='nofollow noopener noreferrer' target='_blank'>Telegram</a>
-                    <a aria-label='Share on LinkedIn' class='share-btn linkedin' expr:href='&quot;https://www.linkedin.com/sharing/share-offsite/?url=&quot; + data:post.url' rel='nofollow noopener noreferrer' target='_blank'>LinkedIn</a>
-                    <a aria-label='Share on Reddit' class='share-btn reddit' expr:href='&quot;https://www.reddit.com/submit?url=&quot; + data:post.url + &quot;&amp;title=&quot; + data:post.title' rel='nofollow noopener noreferrer' target='_blank'>Reddit</a>
+                    <button aria-label='Share on WhatsApp' class='share-btn whatsapp' data-sia-share='whatsapp' expr:data-title='data:post.title' expr:data-url='data:post.url' type='button'>WhatsApp</button>
+                    <button aria-label='Share on Facebook' class='share-btn facebook' data-sia-share='facebook' expr:data-title='data:post.title' expr:data-url='data:post.url' type='button'>Facebook</button>
+                    <button aria-label='Share on X' class='share-btn xshare' data-sia-share='x' expr:data-title='data:post.title' expr:data-url='data:post.url' type='button'>X</button>
+                    <button aria-label='Share on Telegram' class='share-btn telegram' data-sia-share='telegram' expr:data-title='data:post.title' expr:data-url='data:post.url' type='button'>Telegram</button>
+                    <button aria-label='Share on LinkedIn' class='share-btn linkedin' data-sia-share='linkedin' expr:data-title='data:post.title' expr:data-url='data:post.url' type='button'>LinkedIn</button>
+                    <button aria-label='Share on Reddit' class='share-btn reddit' data-sia-share='reddit' expr:data-title='data:post.title' expr:data-url='data:post.url' type='button'>Reddit</button>
                     <b:if cond='data:post.featuredImage'>
-                      <a aria-label='Share on Pinterest' class='share-btn pinterest' expr:href='&quot;https://www.pinterest.com/pin/create/button/?url=&quot; + data:post.url + &quot;&amp;media=&quot; + resizeImage(data:post.featuredImage, 1200, &quot;1200:675&quot;) + &quot;&amp;description=&quot; + data:post.title' rel='nofollow noopener noreferrer' target='_blank'>Pinterest</a>
+                      <button aria-label='Share on Pinterest' class='share-btn pinterest' data-sia-share='pinterest' expr:data-image='resizeImage(data:post.featuredImage, 1200, &quot;1200:675&quot;)' expr:data-title='data:post.title' expr:data-url='data:post.url' type='button'>Pinterest</button>
                     </b:if>
-                    <a aria-label='Share by email' class='share-btn email' expr:href='&quot;mailto:?subject=&quot; + data:post.title + &quot;&amp;body=&quot; + data:post.url'>Email</a>
+                    <button aria-label='Share by email' class='share-btn email' data-sia-share='email' expr:data-title='data:post.title' expr:data-url='data:post.url' type='button'>Email</button>
                     <button aria-label='Open device share menu' class='share-btn native-share native-share-btn' expr:data-title='data:post.title' expr:data-url='data:post.url' type='button'>Share</button>
                     <button aria-label='Copy post link' class='share-btn copy-link-btn' expr:data-url='data:post.url' type='button'>Copy Link</button>
                   </div>
@@ -1001,12 +1059,7 @@
   </div>
 
   <footer>
-    <div class='footer-links'>
-      <a href='/p/about.html'>About</a>
-      <a href='/p/contact.html'>Contact</a>
-      <a href='/p/privacy-policy.html'>Privacy Policy</a>
-      <a href='/p/disclaimer.html'>Disclaimer</a>
-    </div>
+    <b:section class='footer-links' id='footer-links' maxwidgets='1' showaddelement='yes'></b:section>
 
     <div class='footer-credits'>
       <div>
@@ -1151,6 +1204,37 @@
           });
       });
 
+      // Share: Encoded social actions
+      document.querySelectorAll("[data-sia-share]").forEach(function(btn) {
+          btn.addEventListener("click", function() {
+              let network = btn.getAttribute("data-sia-share") || "";
+              let title = btn.getAttribute("data-title") || document.title;
+              let url = btn.getAttribute("data-url") || window.location.href;
+              let image = btn.getAttribute("data-image") || "";
+              let encodedTitle = encodeURIComponent(title);
+              let encodedUrl = encodeURIComponent(url);
+              let encodedImage = encodeURIComponent(image);
+              let target = "";
+
+              if(network === "whatsapp") target = "https://wa.me/?text=" + encodeURIComponent(title + " " + url);
+              else if(network === "facebook") target = "https://www.facebook.com/sharer/sharer.php?u=" + encodedUrl;
+              else if(network === "x") target = "https://twitter.com/intent/tweet?text=" + encodedTitle + "&url=" + encodedUrl;
+              else if(network === "telegram") target = "https://t.me/share/url?url=" + encodedUrl + "&text=" + encodedTitle;
+              else if(network === "linkedin") target = "https://www.linkedin.com/sharing/share-offsite/?url=" + encodedUrl;
+              else if(network === "reddit") target = "https://www.reddit.com/submit?url=" + encodedUrl + "&title=" + encodedTitle;
+              else if(network === "pinterest") target = "https://www.pinterest.com/pin/create/button/?url=" + encodedUrl + "&media=" + encodedImage + "&description=" + encodedTitle;
+              else if(network === "email") {
+                  window.location.href = "mailto:?subject=" + encodedTitle + "&body=" + encodedUrl;
+                  return;
+              }
+
+              if(target) {
+                  let opened = window.open(target, "_blank", "noopener,noreferrer");
+                  if(opened) opened.opener = null;
+              }
+          });
+      });
+
       // Share: Native Web Share
       document.querySelectorAll(".native-share-btn").forEach(function(btn) {
           if (!navigator.share) {
@@ -1180,13 +1264,39 @@
           }
       }
 
+      // SIA Featured Image URL Dedupe
+      function normalizeSiaImageUrl(value) {
+          if(!value) return "";
+          try {
+              let raw = String(value).replace(/=w\d+(?:-h\d+)?(?:-[^/?#]+)?$/i, "");
+              let u = new URL(raw, window.location.href);
+              u.hash = "";
+              u.search = "";
+              u.pathname = u.pathname
+                  .replace(/\/s\d+(?:-[^/]+)?\//i, "/")
+                  .replace(/\/w\d+(?:-h\d+)?(?:-[^/]+)?\//i, "/");
+              return (u.origin + u.pathname).replace(/\/+$/, "");
+          } catch(e) {
+              return String(value).split("?")[0].split("#")[0]
+                  .replace(/\/s\d+(?:-[^/]+)?\//i, "/")
+                  .replace(/\/w\d+(?:-h\d+)?(?:-[^/]+)?\//i, "/")
+                  .replace(/=w\d+(?:-h\d+)?(?:-[^/?#]+)?$/i, "")
+                  .replace(/\/+$/, "");
+          }
+      }
+
+      let featuredImg = document.getElementById("sia-featured-image");
       let bodyImg = document.querySelector("#post-body-content img");
-      if(bodyImg) {
-          let parentLink = bodyImg.parentNode;
-          if(parentLink.tagName === 'A') {
-              parentLink.style.display = 'none';
-          } else {
-              bodyImg.style.display = 'none';
+      if(featuredImg && bodyImg) {
+          let featuredKey = normalizeSiaImageUrl(featuredImg.currentSrc || featuredImg.src);
+          let bodyKey = normalizeSiaImageUrl(bodyImg.currentSrc || bodyImg.src);
+          if(featuredKey && bodyKey && featuredKey === bodyKey) {
+              let parentLink = bodyImg.parentElement;
+              if(parentLink && parentLink.tagName === "A" && parentLink.children.length === 1 && !parentLink.textContent.trim()) {
+                  parentLink.style.display = "none";
+              } else {
+                  bodyImg.style.display = "none";
+              }
           }
       }
 
@@ -1284,19 +1394,7 @@
     //<![CDATA[
 /* SIA-Infinity Hybrid Graph Adapter v0.1
  * ----------------------------------------
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
+ * Related engine: SIA Fibonacci-KNN v0.1 (adaptive symbolic recall).
  * Priority:
  *   1. Cloudflare edge graph when configured by the repository manifest.
  *   2. Raw GitHub precomputed graph.
@@ -1610,10 +1708,41 @@
     };
   }
 
+  var PHI = (1 + Math.sqrt(5)) / 2;
+
+  function fibonacciFloor(value) {
+    if (value < 1) return 0;
+    var a = 1, b = 1;
+    while (b <= value) {
+      var next = a + b;
+      a = b;
+      b = next;
+    }
+    return a;
+  }
+
+  function adaptiveFibonacciK(n, maxK) {
+    n = Math.max(0, Number(n) || 0);
+    if (!n) return 0;
+    maxK = Math.max(1, Math.min(55, Number(maxK) || 55));
+    return Math.min(n, maxK, Math.max(3, fibonacciFloor(Math.sqrt(n))));
+  }
+
+  function goldenRankWeights(k) {
+    k = Math.max(0, Number(k) || 0);
+    if (!k) return [];
+    var raw = [], total = 0;
+    for (var i = 0; i < k; i++) {
+      var value = Math.pow(PHI, -i);
+      raw.push(value);
+      total += value;
+    }
+    return raw.map(function (value) { return value / total; });
+  }
+
   function fallbackScore(post, ctx) {
-    // Fibonacci-KNN Lite: the browser fallback has labels/title but no
-    // precomputed entity graph, so it preserves the same ordering philosophy.
-    var reasons = ['fibonacci_knn_fallback'];
+    // Fibonacci-KNN Lite: fallback has title/labels but no precomputed entities.
+    var reasons = ['fibonacci_knn_fallback', 'semantic_similarity'];
     var candidateLabels = (post.labels || []).map(normalize).filter(Boolean);
     var ctxLabels = ctx.labels.map(normalize).filter(Boolean);
 
@@ -1699,14 +1828,34 @@
       if (key && key !== cleanUrl(window.location.href) && !byUrl[key]) byUrl[key] = p;
     });
 
-    return Object.keys(byUrl).map(function (key) {
+    var ranked = Object.keys(byUrl).map(function (key) {
       var p = byUrl[key];
       var s = fallbackScore(p, ctx);
-      return { title: p.title, url: p.url, score: s.score, reasons: s.reasons };
-    }).filter(function (x) {
-      return x.score >= cfg.minFallbackScore;
+      return {
+        title: p.title,
+        url: p.url,
+        score: s.score,
+        similarity: s.score,
+        distance: Math.round((1 - (s.score / 100)) * 1000000) / 1000000,
+        reasons: s.reasons
+      };
     }).sort(function (a, b) {
-      return b.score - a.score || a.title.localeCompare(b.title);
+      return b.similarity - a.similarity || a.title.localeCompare(b.title);
+    });
+
+    var k = adaptiveFibonacciK(ranked.length, 55);
+    var nearest = ranked.slice(0, k);
+    var weights = goldenRankWeights(nearest.length);
+
+    nearest.forEach(function (item, index) {
+      item.rank = index + 1;
+      item.rank_weight = Math.round(weights[index] * 100000000) / 100000000;
+      item.recall_score = Math.round(item.similarity * weights[index] * 1000000) / 1000000;
+      item.reasons = item.reasons.concat(['adaptive_fibonacci_k', 'golden_ratio_rank']);
+    });
+
+    return nearest.filter(function (item) {
+      return item.similarity >= cfg.minFallbackScore;
     }).slice(0, cfg.maxRelated);
   }
 

@@ -1,18 +1,6 @@
 /* SIA-Infinity Hybrid Graph Adapter v0.1
  * ----------------------------------------
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
- * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
+ * Related engine: SIA Fibonacci-KNN v0.1 (adaptive symbolic recall).
  * Priority:
  *   1. Cloudflare edge graph when configured by the repository manifest.
  *   2. Raw GitHub precomputed graph.
@@ -326,10 +314,41 @@
     };
   }
 
+  var PHI = (1 + Math.sqrt(5)) / 2;
+
+  function fibonacciFloor(value) {
+    if (value < 1) return 0;
+    var a = 1, b = 1;
+    while (b <= value) {
+      var next = a + b;
+      a = b;
+      b = next;
+    }
+    return a;
+  }
+
+  function adaptiveFibonacciK(n, maxK) {
+    n = Math.max(0, Number(n) || 0);
+    if (!n) return 0;
+    maxK = Math.max(1, Math.min(55, Number(maxK) || 55));
+    return Math.min(n, maxK, Math.max(3, fibonacciFloor(Math.sqrt(n))));
+  }
+
+  function goldenRankWeights(k) {
+    k = Math.max(0, Number(k) || 0);
+    if (!k) return [];
+    var raw = [], total = 0;
+    for (var i = 0; i < k; i++) {
+      var value = Math.pow(PHI, -i);
+      raw.push(value);
+      total += value;
+    }
+    return raw.map(function (value) { return value / total; });
+  }
+
   function fallbackScore(post, ctx) {
-    // Fibonacci-KNN Lite: the browser fallback has labels/title but no
-    // precomputed entity graph, so it preserves the same ordering philosophy.
-    var reasons = ['fibonacci_knn_fallback'];
+    // Fibonacci-KNN Lite: fallback has title/labels but no precomputed entities.
+    var reasons = ['fibonacci_knn_fallback', 'semantic_similarity'];
     var candidateLabels = (post.labels || []).map(normalize).filter(Boolean);
     var ctxLabels = ctx.labels.map(normalize).filter(Boolean);
 
@@ -415,14 +434,34 @@
       if (key && key !== cleanUrl(window.location.href) && !byUrl[key]) byUrl[key] = p;
     });
 
-    return Object.keys(byUrl).map(function (key) {
+    var ranked = Object.keys(byUrl).map(function (key) {
       var p = byUrl[key];
       var s = fallbackScore(p, ctx);
-      return { title: p.title, url: p.url, score: s.score, reasons: s.reasons };
-    }).filter(function (x) {
-      return x.score >= cfg.minFallbackScore;
+      return {
+        title: p.title,
+        url: p.url,
+        score: s.score,
+        similarity: s.score,
+        distance: Math.round((1 - (s.score / 100)) * 1000000) / 1000000,
+        reasons: s.reasons
+      };
     }).sort(function (a, b) {
-      return b.score - a.score || a.title.localeCompare(b.title);
+      return b.similarity - a.similarity || a.title.localeCompare(b.title);
+    });
+
+    var k = adaptiveFibonacciK(ranked.length, 55);
+    var nearest = ranked.slice(0, k);
+    var weights = goldenRankWeights(nearest.length);
+
+    nearest.forEach(function (item, index) {
+      item.rank = index + 1;
+      item.rank_weight = Math.round(weights[index] * 100000000) / 100000000;
+      item.recall_score = Math.round(item.similarity * weights[index] * 1000000) / 1000000;
+      item.reasons = item.reasons.concat(['adaptive_fibonacci_k', 'golden_ratio_rank']);
+    });
+
+    return nearest.filter(function (item) {
+      return item.similarity >= cfg.minFallbackScore;
     }).slice(0, cfg.maxRelated);
   }
 

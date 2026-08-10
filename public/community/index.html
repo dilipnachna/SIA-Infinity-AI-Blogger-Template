@@ -3,43 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
 <title>SIA-Infinity Blogger Community</title>
-<meta name="description" content="Verified Blogger and Blogspot sites using the SIA-Infinity AI Blogger Template.">
+<meta name="description" content="Verified Blogspot sites using the SIA-Infinity AI Blogger Template.">
 <style>
 :root{color-scheme:light dark;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-body{margin:0;background:#f8fafc;color:#0f172a}main{max-width:980px;margin:auto;padding:48px 20px 72px}
-a{color:#1d4ed8}.hero{padding:28px;border:1px solid #dbeafe;border-radius:18px;background:#fff;box-shadow:0 8px 30px rgba(15,23,42,.06)}
-h1{margin:0 0 10px;font-size:clamp(30px,5vw,48px)}.count{font-size:20px;font-weight:800;color:#166534}.meta{color:#64748b;line-height:1.7}
-.search{width:100%;box-sizing:border-box;margin:24px 0 18px;padding:13px 15px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#0f172a;font:inherit}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}.blog-card{padding:18px;border:1px solid #e2e8f0;border-radius:14px;background:#fff}
-.blog-card h2{margin:0 0 7px;font-size:18px}.blog-card p{margin:0 0 10px;color:#475569;overflow-wrap:anywhere}.blog-card span{font-size:12px;font-weight:800;color:#166534}
+body{margin:0;background:#f8fafc;color:#0f172a}main{max-width:980px;margin:auto;padding:48px 20px 72px}a{color:#1d4ed8}
+.hero{padding:28px;border:1px solid #dbeafe;border-radius:18px;background:#fff;box-shadow:0 8px 30px rgba(15,23,42,.06)}h1{margin:0 0 10px;font-size:clamp(30px,5vw,48px)}
+.count{font-size:20px;font-weight:800;color:#166534}.meta{color:#64748b;line-height:1.7}.search{width:100%;box-sizing:border-box;margin:24px 0 18px;padding:13px 15px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#0f172a;font:inherit}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}.blog-card{padding:18px;border:1px solid #e2e8f0;border-radius:14px;background:#fff}.blog-card h2{margin:0 0 7px;font-size:18px}.blog-card p{margin:0 0 10px;color:#475569;overflow-wrap:anywhere}.blog-card span{font-size:12px;font-weight:800;color:#166534}
 .empty{padding:22px;border:1px dashed #cbd5e1;border-radius:12px;background:#fff;color:#475569}footer{margin-top:36px;color:#64748b;font-size:13px;line-height:1.7}
 @media(prefers-color-scheme:dark){body{background:#020617;color:#e2e8f0}.hero,.blog-card,.empty{background:#0f172a;border-color:#334155}.meta,.blog-card p,footer{color:#94a3b8}.search{background:#0f172a;color:#e2e8f0;border-color:#475569}.count,.blog-card span{color:#86efac}a{color:#93c5fd}}
 </style>
 </head>
-<body>
-<main>
-<section class="hero">
+<body><main><section class="hero">
 <h1>SIA-Infinity Blogger Community</h1>
-<div class="count">1 verified SIA blog</div>
-<p class="meta">This directory is built from public SIA repository registries and verified against each live Blogger site. It does not collect visitor analytics or hidden installation telemetry.</p>
+<div class="count">0 verified SIA blogs</div>
+<p class="meta">0 verified in the latest run. Membership is explicit, repository-bound, and checked against the live Blogger template. No hidden installation or visitor telemetry is collected.</p>
 <input class="search" id="community-search" type="search" placeholder="Search verified blogs" aria-label="Search verified blogs">
-<div class="grid" id="community-grid"><article class="blog-card" data-search="sia-infinity ai blogger template sia-infinity.blogspot.com"><h2><a href="https://sia-infinity.blogspot.com/" rel="ugc nofollow noopener noreferrer" target="_blank">SIA-Infinity AI Blogger Template</a></h2><p>sia-infinity.blogspot.com</p><span>SIA v0.1 · Verified</span></article></div>
+<div class="grid" id="community-grid"><div class="empty">No verified community blogs are listed yet. Set <code>community: true</code> in your public SIA fork, run its normalization workflow, install that fork's normalized SIA theme, and the hourly verifier can add the Blogspot site.</div></div>
 </section>
-<footer>Updated 2026-08-10T18:24:12+00:00. Community links are discovery references and use <code>ugc nofollow</code>. · <a href="https://sia-infinity.blogspot.com/">SIA-Infinity AI Blogger Template</a> · <a href="https://github.com/dilipnachna/SIA-Infinity-AI-Blogger-Template">GitHub</a></footer>
-</main>
-<script>
-(function(){
-  var input=document.getElementById('community-search');
-  if(!input)return;
-  input.addEventListener('input',function(){
-    var q=input.value.trim().toLowerCase();
-    document.querySelectorAll('.blog-card').forEach(function(card){
-      card.hidden=!!q && (card.getAttribute('data-search')||'').indexOf(q)===-1;
-    });
-  });
-})();
-</script>
-</body>
-</html>
+<footer>Updated 2026-08-10T18:56:01+00:00. Member links are discovery references and use <code>ugc nofollow</code>. · <a href="https://sia-infinity.blogspot.com/">SIA-Infinity AI Blogger Template</a> · <a href="https://github.com/dilipnachna/SIA-Infinity-AI-Blogger-Template">GitHub</a></footer>
+</main><script>(function(){var input=document.getElementById('community-search');if(!input)return;input.addEventListener('input',function(){var q=input.value.trim().toLowerCase();document.querySelectorAll('.blog-card').forEach(function(card){card.hidden=!!q&&(card.getAttribute('data-search')||'').indexOf(q)===-1;});});})();</script></body></html>

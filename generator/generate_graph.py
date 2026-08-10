@@ -40,8 +40,8 @@ VERSION = "0.1.0"
 USER_AGENT = f"SIA-Infinity-Graph-Generator/{VERSION}"
 DEFAULT_PAGE_SIZE = 150
 
-FIBONACCI_KNN_ENGINE = "fibonacci-knn-v0.1"
-FIBONACCI_KNN_WEIGHTS = {
+FIBONACCI_KNN_ENGINE = "sia-fibonacci-knn-v0.1"
+SEMANTIC_SIMILARITY_WEIGHTS = {
     "entity": 34.0,
     "silo": 21.0,
     "title": 13.0,
@@ -49,7 +49,13 @@ FIBONACCI_KNN_WEIGHTS = {
     "content_type": 5.0,
     "facet": 3.0,
 }
-FIBONACCI_KNN_TOTAL = sum(FIBONACCI_KNN_WEIGHTS.values())
+SEMANTIC_SIMILARITY_TOTAL = sum(SEMANTIC_SIMILARITY_WEIGHTS.values())
+# Backward-compatible alias retained in graph metadata during v0.1.
+FIBONACCI_KNN_WEIGHTS = SEMANTIC_SIMILARITY_WEIGHTS
+FIBONACCI_KNN_TOTAL = SEMANTIC_SIMILARITY_TOTAL
+PHI = (1.0 + math.sqrt(5.0)) / 2.0
+DEFAULT_RELATED_MAX_K = 55
+DEFAULT_RELATED_DISPLAY_LIMIT = 6
 
 CONTENT_TYPE_ALIASES = {
     "poems": {
@@ -399,8 +405,37 @@ def jaccard(a: Iterable[str], b: Iterable[str]) -> float:
     return len(sa & sb) / len(sa | sb)
 
 
+def fibonacci_floor(value: float) -> int:
+    """Largest Fibonacci number <= value, using 1, 1, 2, 3, 5..."""
+    if value < 1:
+        return 0
+    a, b = 1, 1
+    while b <= value:
+        a, b = b, a + b
+    return a
+
+
+def adaptive_fibonacci_k(n: int, max_k: int = DEFAULT_RELATED_MAX_K) -> int:
+    """Adaptive SIA neighbourhood size for N available candidate memories."""
+    n = max(0, int(n))
+    if n == 0:
+        return 0
+    cap = max(1, min(DEFAULT_RELATED_MAX_K, int(max_k)))
+    return min(n, cap, max(3, fibonacci_floor(math.sqrt(n))))
+
+
+def golden_rank_weights(k: int) -> List[float]:
+    """Normalized phi decay: w_r = phi^-(r-1) / sum(phi^-(j-1))."""
+    k = max(0, int(k))
+    if k == 0:
+        return []
+    raw = [PHI ** (-index) for index in range(k)]
+    total = sum(raw)
+    return [value / total for value in raw]
+
+
 def related_score(a: Post, b: Post):
-    """Return normalized Fibonacci-weighted symbolic similarity (0..100)."""
+    """Return deterministic symbolic semantic similarity in the range 0..100."""
     if a.id == b.id:
         return -1.0, []
 
@@ -432,12 +467,12 @@ def related_score(a: Post, b: Post):
     }
 
     weighted = sum(
-        FIBONACCI_KNN_WEIGHTS[name] * value
+        SEMANTIC_SIMILARITY_WEIGHTS[name] * value
         for name, value in components.items()
     )
-    score = (weighted / FIBONACCI_KNN_TOTAL) * 100.0
+    score = (weighted / SEMANTIC_SIMILARITY_TOTAL) * 100.0
 
-    reasons = ["fibonacci_knn"]
+    reasons = ["fibonacci_knn", "semantic_similarity"]
     if entity_similarity:
         reasons.append("shared_entity")
     if silo_similarity:
@@ -451,7 +486,8 @@ def related_score(a: Post, b: Post):
     if facet_similarity:
         reasons.append("shared_facet")
 
-    # A known but mismatched content type is a useful conservative penalty.
+    # High similarity is not automatically relevance. A known incompatible
+    # content type remains a conservative negative signal.
     if a.content_types and b.content_types and not content_similarity:
         score -= 8.0
         reasons.append("different_content_type")
@@ -459,27 +495,48 @@ def related_score(a: Post, b: Post):
     return round(max(0.0, min(100.0, score)), 3), reasons
 
 
-def precompute_related(posts, limit, min_score):
-    """Build a deterministic KNN list for every post using Fibonacci distance."""
+def precompute_related(posts, limit=None, min_score=10.0, max_k=DEFAULT_RELATED_MAX_K):
+    """Build adaptive Fibonacci-KNN recall lists for every post.
+
+    `limit` remains accepted for old callers, but the v0.1 adaptive engine uses
+    `max_k` as the recall cap. Display count is a separate browser concern.
+    """
     output = {}
-    k = max(1, int(limit))
+    candidate_count = max(0, len(posts) - 1)
+    adaptive_k = adaptive_fibonacci_k(candidate_count, max_k=max_k)
 
     for post in posts:
         ranked = []
         for candidate in posts:
             score, reasons = related_score(post, candidate)
-            if score >= min_score:
-                ranked.append({
-                    "id": candidate.id,
-                    "score": score,
-                    "distance": round(1.0 - (score / 100.0), 6),
-                    "reasons": reasons,
-                })
+            if score < 0:
+                continue
+            ranked.append({
+                "id": candidate.id,
+                "score": score,
+                "similarity": score,
+                "distance": round(1.0 - (score / 100.0), 6),
+                "reasons": reasons,
+            })
 
         ranked.sort(key=lambda x: (x["distance"], x["id"]))
-        neighbors = ranked[:k]
-        for rank, item in enumerate(neighbors, 1):
+        nearest = ranked[:adaptive_k]
+        weights = golden_rank_weights(len(nearest))
+        neighbors = []
+
+        for rank, (item, rank_weight) in enumerate(zip(nearest, weights), 1):
             item["rank"] = rank
+            item["rank_weight"] = round(rank_weight, 8)
+            item["recall_score"] = round(item["similarity"] * rank_weight, 6)
+            item["reasons"] = item["reasons"] + [
+                "adaptive_fibonacci_k",
+                "golden_ratio_rank",
+            ]
+            # Relevance admission happens after recall. This preserves K(N)
+            # while refusing very weak related links in the published graph.
+            if item["similarity"] >= min_score:
+                neighbors.append(item)
+
         output[post.id] = neighbors
 
     return output
@@ -560,6 +617,8 @@ def parse_args():
     p.add_argument("--entity-min-occurrences", type=int)
     p.add_argument("--related-limit", type=int)
     p.add_argument("--related-min-score", type=float)
+    p.add_argument("--related-max-k", type=int)
+    p.add_argument("--related-min-similarity", type=float)
     p.add_argument("--compact", action="store_true")
     return p.parse_args()
 
@@ -575,12 +634,26 @@ def main():
     output_path = args.output or config.get("output", "public/sia-graph.json")
     max_posts = args.max_posts or int(config.get("max_posts", 1000))
     min_occ = args.entity_min_occurrences or int(config.get("entity_min_occurrences", 2))
-    related_limit = args.related_limit or int(config.get("related_limit", 8))
-    related_min_score = (
-        args.related_min_score
-        if args.related_min_score is not None
-        else float(config.get("related_min_score", 10))
+    # v0.1 migration: display count is separate from adaptive recall depth.
+    related_display_limit = int(config.get("related_display_limit", 6))
+    related_max_k = (
+        args.related_max_k
+        if args.related_max_k is not None
+        else int(config.get("related_max_k", DEFAULT_RELATED_MAX_K))
     )
+    related_max_k = max(1, min(DEFAULT_RELATED_MAX_K, related_max_k))
+    related_min_similarity = (
+        args.related_min_similarity
+        if args.related_min_similarity is not None
+        else (
+            args.related_min_score
+            if args.related_min_score is not None
+            else float(config.get("related_min_similarity", config.get("related_min_score", 10)))
+        )
+    )
+    # Legacy related_limit remains readable for old configs but no longer caps
+    # adaptive recall. The browser display remains controlled separately.
+    legacy_related_limit = int(config.get("related_limit", related_display_limit))
 
     content_types = {k: set(v) for k, v in CONTENT_TYPE_ALIASES.items()}
     facets = {k: set(v) for k, v in FACET_ALIASES.items()}
@@ -607,8 +680,18 @@ def main():
                 "post_count": 0,
                 "mode": "precomputed-symbolic",
                 "related_engine": FIBONACCI_KNN_ENGINE,
-                "related_k": max(1, related_limit),
-                "fibonacci_weights": FIBONACCI_KNN_WEIGHTS
+                "related_k": adaptive_fibonacci_k(0, related_max_k),
+                "related_max_k": related_max_k,
+                "related_display_limit": related_display_limit,
+                "semantic_similarity_weights": SEMANTIC_SIMILARITY_WEIGHTS,
+                "fibonacci_weights": FIBONACCI_KNN_WEIGHTS,
+                "fibonacci_knn": {
+                    "k_rule": "min(N,55,max(3,FibFloor(sqrt(N))))",
+                    "phi": round(PHI, 12),
+                    "rank_weighting": "normalized_phi_decay",
+                    "max_k": related_max_k,
+                    "display_limit": related_display_limit
+                },
             },
             "graph": {
                 "silos": [],
@@ -653,8 +736,8 @@ def main():
 
     related = precompute_related(
         posts,
-        limit=max(1, related_limit),
-        min_score=related_min_score,
+        min_score=related_min_similarity,
+        max_k=related_max_k,
     )
 
     graph = build_graph(posts)
@@ -683,8 +766,19 @@ def main():
             "post_count": len(posts),
             "mode": "precomputed-symbolic",
             "related_engine": FIBONACCI_KNN_ENGINE,
-            "related_k": max(1, related_limit),
+            "related_k": adaptive_fibonacci_k(max(0, len(posts) - 1), related_max_k),
+            "related_max_k": related_max_k,
+            "related_display_limit": related_display_limit,
+            "semantic_similarity_weights": SEMANTIC_SIMILARITY_WEIGHTS,
             "fibonacci_weights": FIBONACCI_KNN_WEIGHTS,
+            "fibonacci_knn": {
+                "k_rule": "min(N,55,max(3,FibFloor(sqrt(N))))",
+                "phi": round(PHI, 12),
+                "rank_weighting": "normalized_phi_decay",
+                "max_k": related_max_k,
+                "display_limit": related_display_limit,
+                "legacy_related_limit": legacy_related_limit,
+            },
         },
         "graph": graph,
         "posts": post_map,
