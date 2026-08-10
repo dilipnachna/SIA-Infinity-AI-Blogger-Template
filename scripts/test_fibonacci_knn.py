@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Small deterministic self-test for SIA Fibonacci-KNN v0.1."""
+"""Deterministic self-test for SIA adaptive Fibonacci-KNN v0.1."""
 import importlib.util
+import math
 from pathlib import Path
 import sys
 
@@ -14,6 +15,9 @@ spec.loader.exec_module(module)
 Post = module.Post
 related_score = module.related_score
 precompute_related = module.precompute_related
+fibonacci_floor = module.fibonacci_floor
+adaptive_fibonacci_k = module.adaptive_fibonacci_k
+golden_rank_weights = module.golden_rank_weights
 
 
 def post(pid, title, labels, entities=None, silo=None, content_types=None, facets=None):
@@ -32,6 +36,26 @@ def post(pid, title, labels, entities=None, silo=None, content_types=None, facet
         silo=silo or (labels[0] if labels else "general"),
     )
 
+
+# Source-framework K examples and edge cases.
+assert adaptive_fibonacci_k(0) == 0
+assert adaptive_fibonacci_k(1) == 1
+assert adaptive_fibonacci_k(2) == 2
+assert adaptive_fibonacci_k(3) == 3
+assert adaptive_fibonacci_k(10) == 3
+assert adaptive_fibonacci_k(100) == 8
+assert adaptive_fibonacci_k(1000) == 21
+assert adaptive_fibonacci_k(10000) == 55
+assert fibonacci_floor(math.sqrt(100)) == 8
+assert fibonacci_floor(math.sqrt(1000)) == 21
+
+# Golden-ratio weights are normalized and strictly decreasing.
+weights = golden_rank_weights(8)
+assert len(weights) == 8
+assert abs(sum(weights) - 1.0) < 1e-12
+assert all(weights[i] > weights[i + 1] for i in range(len(weights) - 1))
+phi = (1 + math.sqrt(5)) / 2
+assert abs((weights[0] / weights[1]) - phi) < 1e-12
 
 base = post(
     "base",
@@ -69,17 +93,32 @@ unrelated_score, _ = related_score(base, unrelated)
 assert strong_score > label_score > unrelated_score
 assert "shared_entity" in strong_reasons
 assert "same_silo" in strong_reasons
+assert "semantic_similarity" in strong_reasons
 
 ranked = precompute_related(
     [base, strong, label_only, unrelated],
-    limit=2,
     min_score=0.01,
+    max_k=55,
 )
-assert ranked["base"][0]["id"] == "strong"
-assert ranked["base"][0]["rank"] == 1
-assert ranked["base"][0]["distance"] < ranked["base"][1]["distance"]
+base_neighbors = ranked["base"]
+assert base_neighbors[0]["id"] == "strong"
+assert base_neighbors[0]["rank"] == 1
+assert base_neighbors[0]["distance"] < base_neighbors[1]["distance"]
+assert base_neighbors[0]["rank_weight"] > base_neighbors[1]["rank_weight"]
+assert abs(
+    base_neighbors[0]["recall_score"]
+    - base_neighbors[0]["similarity"] * base_neighbors[0]["rank_weight"]
+) < 1e-4
+assert "adaptive_fibonacci_k" in base_neighbors[0]["reasons"]
+assert "golden_ratio_rank" in base_neighbors[0]["reasons"]
 
 print(
-    "Fibonacci-KNN self-test OK:",
-    {"strong": strong_score, "label_only": label_score, "unrelated": unrelated_score},
+    "Adaptive Fibonacci-KNN self-test OK:",
+    {
+        "strong": strong_score,
+        "label_only": label_score,
+        "unrelated": unrelated_score,
+        "k100": adaptive_fibonacci_k(100),
+        "k1000": adaptive_fibonacci_k(1000),
+    },
 )
