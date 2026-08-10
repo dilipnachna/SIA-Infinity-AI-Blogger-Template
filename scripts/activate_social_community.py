@@ -4,7 +4,7 @@
 Rules:
 - keep the public version at v0.1
 - keep the universal Blogger XML English-only
-- do not add visitor tracking or hidden telemetry
+- do not add visitor registration or hidden telemetry
 - keep the existing SIA project attribution
 - add only public sharing/discovery functionality
 - remain idempotent for hourly GitHub Actions runs
@@ -27,6 +27,7 @@ CSS_BLOCK = """    /* SIA Social Sharing + Community v0.1 */
     .share-btn.native-share { border-color: #cbd5e1; background: #fff; color: #0f172a; }
     .sia-community-row { margin-top: 10px; font-size: 13px; line-height: 1.6; }
     .sia-community-row a { font-weight: 700; }
+    .sia-community-count { margin-left: 4px; color: #166534; font-weight: 800; }
     .sia-community-separator { color: #94a3b8; padding: 0 6px; }
 
 """
@@ -56,11 +57,17 @@ NEW_SHARE = """                  <div class='post-share-buttons'>
 
 COMMUNITY_MARKER = "class='sia-community-row'"
 COMMUNITY_BLOCK = """      <div class='sia-community-row'>
-        <a class='sia-community-link' href='https://sia-infinity.blogspot.com/' rel='nofollow noopener noreferrer' target='_blank'>Explore the SIA Blogger Community</a>
+        <a class='sia-community-link' href='https://sia-infinity.blogspot.com/' id='sia-community-link' referrerpolicy='no-referrer' rel='nofollow noopener noreferrer' target='_blank'>Explore the SIA Blogger Community<span aria-live='polite' class='sia-community-count' id='sia-community-count'></span></a>
         <span aria-hidden='true' class='sia-community-separator'>&#8226;</span>
         <a href='https://github.com/dilipnachna/SIA-Infinity-AI-Blogger-Template' rel='noopener noreferrer' target='_blank'>GitHub</a>
       </div>
 """
+
+OLD_COMMUNITY_LINKS = [
+    "<a class='sia-community-link' href='https://sia-infinity.blogspot.com/' rel='noopener noreferrer' target='_blank'>Explore the SIA Blogger Community</a>",
+    "<a class='sia-community-link' href='https://sia-infinity.blogspot.com/' rel='nofollow noopener noreferrer' target='_blank'>Explore the SIA Blogger Community</a>",
+]
+NEW_COMMUNITY_LINK = "<a class='sia-community-link' href='https://sia-infinity.blogspot.com/' id='sia-community-link' referrerpolicy='no-referrer' rel='nofollow noopener noreferrer' target='_blank'>Explore the SIA Blogger Community<span aria-live='polite' class='sia-community-count' id='sia-community-count'></span></a>"
 
 NATIVE_MARKER = "// Share: Native Web Share"
 NATIVE_JS = """      // Share: Native Web Share
@@ -79,6 +86,106 @@ NATIVE_JS = """      // Share: Native Web Share
 
 """
 
+COMMUNITY_RUNTIME_MARKER = "id='sia-community-runtime'"
+COMMUNITY_RUNTIME = """  <script id='sia-community-runtime'>
+  //<![CDATA[
+  (function() {
+    var link = document.getElementById('sia-community-link');
+    var countNode = document.getElementById('sia-community-count');
+    if (!link || !countNode) return;
+
+    var rawBase = 'https://raw.githubusercontent.com/dilipnachna/SIA-Infinity-AI-Blogger-Template/main/public';
+    var manifestUrl = rawBase + '/sia-edge.json';
+    var rawRegistryUrl = rawBase + '/community/sia-community.json';
+    var cacheKey = 'sia-community-registry-v0.1';
+    var cacheTtl = 6 * 60 * 60 * 1000;
+
+    function applyCommunity(data) {
+      if (!data || typeof data !== 'object') return;
+      var count = Number(data.count || 0);
+      if (count > 0) {
+        countNode.textContent = ' · ' + count + ' verified blog' + (count === 1 ? '' : 's');
+      }
+      if (data.href) link.href = data.href;
+    }
+
+    function readCache() {
+      try {
+        var cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+        if (!cached || !cached.savedAt || Date.now() - cached.savedAt > cacheTtl) return null;
+        return cached;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function writeCache(data) {
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(data));
+      } catch (e) {}
+    }
+
+    async function fetchJson(url) {
+      var response = await fetch(url, {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'omit',
+        cache: 'no-cache',
+        referrerPolicy: 'no-referrer'
+      });
+      if (!response.ok) throw new Error('community-http-' + response.status);
+      return response.json();
+    }
+
+    async function loadCommunity() {
+      var cached = readCache();
+      if (cached) {
+        applyCommunity(cached);
+        return;
+      }
+
+      var edgeBase = '';
+      try {
+        var manifest = await fetchJson(manifestUrl);
+        if (manifest && manifest.cloudflare_base_url) {
+          edgeBase = String(manifest.cloudflare_base_url).replace(/\/$/, '');
+        }
+      } catch (e) {}
+
+      var registry = null;
+      var href = '';
+      if (edgeBase) {
+        try {
+          registry = await fetchJson(edgeBase + '/community/sia-community.json');
+          href = edgeBase + '/community/index.html';
+        } catch (e) {}
+      }
+
+      if (!registry) {
+        try {
+          registry = await fetchJson(rawRegistryUrl);
+        } catch (e) {
+          return;
+        }
+      }
+
+      var count = Number(registry && registry.verified_count || 0);
+      var data = { savedAt: Date.now(), count: count, href: href };
+      applyCommunity(data);
+      writeCache(data);
+    }
+
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(function() { loadCommunity(); }, { timeout: 1800 });
+    } else {
+      window.setTimeout(loadCommunity, 900);
+    }
+  })();
+  //]]>
+  </script>
+
+"""
+
 
 def patch_theme(text: str) -> str:
     if "name='sia-template'" not in text:
@@ -92,6 +199,12 @@ def patch_theme(text: str) -> str:
         if css_anchor not in text:
             raise RuntimeError("Sharing CSS anchor not found")
         text = text.replace(css_anchor, CSS_BLOCK + css_anchor, 1)
+    elif ".sia-community-count" not in text:
+        text = text.replace(
+            "    .sia-community-row a { font-weight: 700; }\n",
+            "    .sia-community-row a { font-weight: 700; }\n    .sia-community-count { margin-left: 4px; color: #166534; font-weight: 800; }\n",
+            1,
+        )
 
     if "class='share-btn linkedin'" not in text:
         if OLD_SHARE not in text:
@@ -108,10 +221,25 @@ def patch_theme(text: str) -> str:
             1,
         )
 
-    text = text.replace(
-        "<a class='sia-community-link' href='https://sia-infinity.blogspot.com/' rel='noopener noreferrer' target='_blank'>",
-        "<a class='sia-community-link' href='https://sia-infinity.blogspot.com/' rel='nofollow noopener noreferrer' target='_blank'>",
-    )
+    if "id='sia-community-link'" not in text:
+        replaced = False
+        for old in OLD_COMMUNITY_LINKS:
+            if old in text:
+                text = text.replace(old, NEW_COMMUNITY_LINK, 1)
+                replaced = True
+                break
+        if not replaced:
+            raise RuntimeError("Existing community link did not match expected v0.1 source")
+
+    if COMMUNITY_RUNTIME_MARKER not in text:
+        runtime_anchor = "  </footer>\n\n  <b:if cond='data:view.isPost'>"
+        if runtime_anchor not in text:
+            raise RuntimeError("Community runtime anchor not found")
+        text = text.replace(
+            runtime_anchor,
+            "  </footer>\n\n" + COMMUNITY_RUNTIME + "  <b:if cond='data:view.isPost'>",
+            1,
+        )
 
     if NATIVE_MARKER not in text:
         js_anchor = "      let postBody = document.getElementById(\"post-body-content\");\n"
@@ -138,6 +266,9 @@ def main() -> None:
         "class='share-btn reddit'",
         "class='share-btn pinterest'",
         "class='share-btn native-share native-share-btn'",
+        "id='sia-community-link'",
+        "id='sia-community-count'",
+        "id='sia-community-runtime'",
         "Explore the SIA Blogger Community",
         "// Share: Native Web Share",
     ]
@@ -146,7 +277,7 @@ def main() -> None:
     if missing:
         raise RuntimeError("Missing social/community markers: " + ", ".join(missing))
 
-    print("SIA v0.1 social sharing and Blogger community UI activated")
+    print("SIA v0.1 social sharing and verified Blogger community UI activated")
 
 
 if __name__ == "__main__":
