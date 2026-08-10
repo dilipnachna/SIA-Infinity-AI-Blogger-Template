@@ -40,6 +40,17 @@ VERSION = "0.1.0"
 USER_AGENT = f"SIA-Infinity-Graph-Generator/{VERSION}"
 DEFAULT_PAGE_SIZE = 150
 
+FIBONACCI_KNN_ENGINE = "fibonacci-knn-v0.1"
+FIBONACCI_KNN_WEIGHTS = {
+    "entity": 34.0,
+    "silo": 21.0,
+    "title": 13.0,
+    "label": 8.0,
+    "content_type": 5.0,
+    "facet": 3.0,
+}
+FIBONACCI_KNN_TOTAL = sum(FIBONACCI_KNN_WEIGHTS.values())
+
 CONTENT_TYPE_ALIASES = {
     "poems": {
         "poem", "poems", "poetry", "kavita", "कविता", "कविताएँ",
@@ -389,53 +400,70 @@ def jaccard(a: Iterable[str], b: Iterable[str]) -> float:
 
 
 def related_score(a: Post, b: Post):
+    """Return normalized Fibonacci-weighted symbolic similarity (0..100)."""
     if a.id == b.id:
         return -1.0, []
 
-    score, reasons = 0.0, []
+    a_entities = {canonical_phrase(x) for x in a.entities if canonical_phrase(x)}
+    b_entities = {canonical_phrase(x) for x in b.entities if canonical_phrase(x)}
+    entity_similarity = jaccard(a_entities, b_entities)
 
-    shared_entities = {canonical_phrase(x) for x in a.entities} & {
-        canonical_phrase(x) for x in b.entities
+    silo_similarity = 1.0 if (
+        a.silo != "general"
+        and canonical_phrase(a.silo) == canonical_phrase(b.silo)
+    ) else 0.0
+
+    title_similarity = jaccard(a.title_tokens, b.title_tokens)
+
+    a_labels = {canonical_phrase(x) for x in a.labels if canonical_phrase(x)}
+    b_labels = {canonical_phrase(x) for x in b.labels if canonical_phrase(x)}
+    label_similarity = jaccard(a_labels, b_labels)
+
+    content_similarity = jaccard(a.content_types, b.content_types)
+    facet_similarity = jaccard(a.facets, b.facets)
+
+    components = {
+        "entity": entity_similarity,
+        "silo": silo_similarity,
+        "title": title_similarity,
+        "label": label_similarity,
+        "content_type": content_similarity,
+        "facet": facet_similarity,
     }
-    if shared_entities:
-        score += 18.0 + 6.0 * min(2, len(shared_entities))
+
+    weighted = sum(
+        FIBONACCI_KNN_WEIGHTS[name] * value
+        for name, value in components.items()
+    )
+    score = (weighted / FIBONACCI_KNN_TOTAL) * 100.0
+
+    reasons = ["fibonacci_knn"]
+    if entity_similarity:
         reasons.append("shared_entity")
-
-    if canonical_phrase(a.silo) == canonical_phrase(b.silo) and a.silo != "general":
-        score += 14.0
+    if silo_similarity:
         reasons.append("same_silo")
-
-    shared_ct = set(a.content_types) & set(b.content_types)
-    if shared_ct:
-        score += 10.0
+    if title_similarity:
+        reasons.append("title_pattern")
+    if label_similarity:
+        reasons.append("shared_label")
+    if content_similarity:
         reasons.append("same_content_type")
-
-    shared_facets = set(a.facets) & set(b.facets)
-    if shared_facets:
-        score += 4.0 * min(2, len(shared_facets))
+    if facet_similarity:
         reasons.append("shared_facet")
 
-    shared_labels = {canonical_phrase(x) for x in a.labels} & {
-        canonical_phrase(x) for x in b.labels
-    }
-    if shared_labels:
-        score += 5.0 * min(3, len(shared_labels))
-        reasons.append("shared_label")
-
-    title_overlap = jaccard(a.title_tokens, b.title_tokens)
-    if title_overlap:
-        score += round(title_overlap * 14.0, 3)
-        reasons.append("title_overlap")
-
-    if a.content_types and b.content_types and not shared_ct:
+    # A known but mismatched content type is a useful conservative penalty.
+    if a.content_types and b.content_types and not content_similarity:
         score -= 8.0
         reasons.append("different_content_type")
 
-    return round(score, 3), reasons
+    return round(max(0.0, min(100.0, score)), 3), reasons
 
 
 def precompute_related(posts, limit, min_score):
+    """Build a deterministic KNN list for every post using Fibonacci distance."""
     output = {}
+    k = max(1, int(limit))
+
     for post in posts:
         ranked = []
         for candidate in posts:
@@ -444,10 +472,16 @@ def precompute_related(posts, limit, min_score):
                 ranked.append({
                     "id": candidate.id,
                     "score": score,
+                    "distance": round(1.0 - (score / 100.0), 6),
                     "reasons": reasons,
                 })
-        ranked.sort(key=lambda x: (-x["score"], x["id"]))
-        output[post.id] = ranked[:limit]
+
+        ranked.sort(key=lambda x: (x["distance"], x["id"]))
+        neighbors = ranked[:k]
+        for rank, item in enumerate(neighbors, 1):
+            item["rank"] = rank
+        output[post.id] = neighbors
+
     return output
 
 
@@ -571,7 +605,10 @@ def main():
                 "generated_at": utc_now_iso(),
                 "blog_url": blog_url,
                 "post_count": 0,
-                "mode": "precomputed-symbolic"
+                "mode": "precomputed-symbolic",
+                "related_engine": FIBONACCI_KNN_ENGINE,
+                "related_k": max(1, related_limit),
+                "fibonacci_weights": FIBONACCI_KNN_WEIGHTS
             },
             "graph": {
                 "silos": [],
@@ -645,6 +682,9 @@ def main():
             "blog_url": blog_url,
             "post_count": len(posts),
             "mode": "precomputed-symbolic",
+            "related_engine": FIBONACCI_KNN_ENGINE,
+            "related_k": max(1, related_limit),
+            "fibonacci_weights": FIBONACCI_KNN_WEIGHTS,
         },
         "graph": graph,
         "posts": post_map,

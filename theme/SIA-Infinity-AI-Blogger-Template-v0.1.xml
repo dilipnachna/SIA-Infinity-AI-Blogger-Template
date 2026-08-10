@@ -1148,6 +1148,7 @@
     //<![CDATA[
 /* SIA-Infinity Hybrid Graph Adapter v0.1
  * ----------------------------------------
+ * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
  * Priority:
  *   1. Cloudflare edge graph when configured by the repository manifest.
  *   2. Raw GitHub precomputed graph.
@@ -1462,31 +1463,50 @@
   }
 
   function fallbackScore(post, ctx) {
-    var score = 0;
-    var reasons = [];
-    var candidateLabels = (post.labels || []).map(normalize);
-    var ctxLabels = ctx.labels.map(normalize);
+    // Fibonacci-KNN Lite: the browser fallback has labels/title but no
+    // precomputed entity graph, so it preserves the same ordering philosophy.
+    var reasons = ['fibonacci_knn_fallback'];
+    var candidateLabels = (post.labels || []).map(normalize).filter(Boolean);
+    var ctxLabels = ctx.labels.map(normalize).filter(Boolean);
 
+    var primaryMatch = !!(
+      ctxLabels.length && candidateLabels.length &&
+      ctxLabels[0] === candidateLabels[0]
+    );
+
+    var labelUnion = {};
+    ctxLabels.forEach(function (x) { labelUnion[x] = true; });
+    candidateLabels.forEach(function (x) { labelUnion[x] = true; });
     var sharedLabels = ctxLabels.filter(function (x) {
       return candidateLabels.indexOf(x) !== -1;
     });
-    if (sharedLabels.length) {
-      score += 14 + Math.min(12, (sharedLabels.length - 1) * 4);
-      reasons.push('shared_label');
-    }
+    var labelSimilarity = Object.keys(labelUnion).length
+      ? sharedLabels.length / Object.keys(labelUnion).length
+      : 0;
 
     var a = tokens(ctx.title);
     var b = tokens(post.title);
+    var tokenUnion = {};
+    a.forEach(function (x) { tokenUnion[x] = true; });
+    b.forEach(function (x) { tokenUnion[x] = true; });
     var bSet = {};
     b.forEach(function (x) { bSet[x] = true; });
-    var overlap = a.filter(function (x) { return bSet[x]; }).length;
+    var sharedTitle = a.filter(function (x) { return bSet[x]; });
+    var titleSimilarity = Object.keys(tokenUnion).length
+      ? sharedTitle.length / Object.keys(tokenUnion).length
+      : 0;
 
-    if (overlap) {
-      score += overlap * 5;
-      reasons.push('title_overlap');
-    }
+    var weighted =
+      (primaryMatch ? 21 : 0) +
+      (8 * labelSimilarity) +
+      (13 * titleSimilarity);
+    var score = (weighted / 42) * 100;
 
-    return { score: score, reasons: reasons };
+    if (primaryMatch) reasons.push('same_silo');
+    if (labelSimilarity) reasons.push('shared_label');
+    if (titleSimilarity) reasons.push('title_pattern');
+
+    return { score: Math.round(score * 1000) / 1000, reasons: reasons };
   }
 
   async function fetchLabelPosts(label) {
