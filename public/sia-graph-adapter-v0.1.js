@@ -1,6 +1,7 @@
 /* SIA-Infinity Hybrid Graph Adapter v0.1
  * ----------------------------------------
  * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
+ * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
  * Priority:
  *   1. Cloudflare edge graph when configured by the repository manifest.
  *   2. Raw GitHub precomputed graph.
