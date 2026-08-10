@@ -1022,7 +1022,7 @@
         <a class='brand-link' href='https://sia-infinity.com/' rel='noopener noreferrer' target='_blank'><strong>SIA-Infinity&#8482;</strong> &#8599;</a>
       </div>
       <div class='sia-community-row'>
-        <a class='sia-community-link' href='https://sia-infinity.blogspot.com/' rel='noopener noreferrer' target='_blank'>Explore the SIA Blogger Community</a>
+        <a class='sia-community-link' href='https://sia-infinity.blogspot.com/' rel='nofollow noopener noreferrer' target='_blank'>Explore the SIA Blogger Community</a>
         <span aria-hidden='true' class='sia-community-separator'>&#8226;</span>
         <a href='https://github.com/dilipnachna/SIA-Infinity-AI-Blogger-Template' rel='noopener noreferrer' target='_blank'>GitHub</a>
       </div>
@@ -1186,6 +1186,7 @@
     //<![CDATA[
 /* SIA-Infinity Hybrid Graph Adapter v0.1
  * ----------------------------------------
+ * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
  * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
  * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
  * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
