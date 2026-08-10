@@ -2,11 +2,13 @@
 """Small deterministic self-test for SIA Fibonacci-KNN v0.1."""
 import importlib.util
 from pathlib import Path
+import sys
 
 MODULE_PATH = Path("generator/generate_graph.py")
 spec = importlib.util.spec_from_file_location("sia_graph_generator", MODULE_PATH)
-module = importlib.util.module_from_spec(spec)
 assert spec and spec.loader
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
 spec.loader.exec_module(module)
 
 Post = module.Post
