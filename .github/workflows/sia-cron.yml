@@ -44,6 +44,10 @@ jobs:
           python scripts/activate_fibonacci_knn.py
           python scripts/activate_hybrid_graph.py
 
+      - name: Test Fibonacci-KNN ranking
+        run: |
+          python scripts/test_fibonacci_knn.py
+
       - name: Generate registered Blogger graphs
         run: |
           python scripts/generate_all_graphs.py --registry sia.blogs.json --base-config sia.config.json
@@ -55,7 +59,7 @@ jobs:
 
       - name: Validate v0.1 outputs
         run: |
-          python -m py_compile generator/generate_graph.py scripts/generate_all_graphs.py scripts/update_edge_manifest.py scripts/activate_fibonacci_knn.py
+          python -m py_compile generator/generate_graph.py scripts/generate_all_graphs.py scripts/update_edge_manifest.py scripts/activate_fibonacci_knn.py scripts/test_fibonacci_knn.py
           python - <<'PY'
           import html
           import json
