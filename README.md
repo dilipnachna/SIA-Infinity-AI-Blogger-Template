@@ -19,6 +19,7 @@ Current stable capabilities include:
 - canonical Blogger permalink strategy
 - first Blogger label as the Primary Semantic Silo
 - precomputed symbolic content graphs
+- SIA Fibonacci-KNN related/similar-pattern ranking
 - optional Cloudflare edge delivery
 - Raw GitHub precomputed fallback
 - Blogger JSON-feed runtime fallback
@@ -50,6 +51,29 @@ articleSection Schema
 Content types, facets and entity candidates are supporting semantic signals. They do not replace the Primary Silo.
 
 The theme does not fake or rewrite Blogger permalinks with JavaScript.
+
+## SIA Fibonacci-KNN v0.1
+
+Related articles and similar patterns are ranked by a deterministic SIA-specific symbolic K-nearest-neighbor method. **Fibonacci-KNN is the project name for this implementation; it is not presented as a standard published algorithm with that exact name.**
+
+The pairwise semantic dimensions use descending Fibonacci weights:
+
+```text
+Shared named entities    34
+Same Primary Silo        21
+Title pattern            13
+Shared Blogger labels     8
+Shared content type       5
+Shared facet              3
+                         --
+Total                    84
+```
+
+Each feature is represented as a normalized similarity. The weighted result is normalized to a `0..100` score, converted to distance as `1 - score/100`, and only the configured K nearest neighbors above `related_min_score` are retained.
+
+The precomputed graph stores the engine metadata, score, distance, reasons and neighbor rank. The browser fallback uses **Fibonacci-KNN Lite** with the signals that are available without a current graph: Primary Silo, labels and title-token pattern similarity.
+
+The design intentionally gives entities and the Primary Silo more influence than generic label or facet overlap. A known but different content type also receives a conservative mismatch penalty.
 
 ## Three-level runtime
 
@@ -108,11 +132,12 @@ Main components:
 
 - `generator/generate_graph.py`
 - `scripts/generate_all_graphs.py`
+- `scripts/activate_fibonacci_knn.py`
 - `assets/sia-graph-adapter-v0.1.js`
 - `scripts/activate_hybrid_graph.py`
 - `.github/workflows/sia-cron.yml`
 
-The workflow runs hourly, by manual dispatch, and after relevant source changes. It generates all enabled graphs, validates the JSON and Blogger XML, and commits the current graphs back to the fork.
+The workflow runs hourly, by manual dispatch, and after relevant source changes. It activates and validates Fibonacci-KNN, generates all enabled graphs, validates the JSON and Blogger XML, and commits the current graphs back to the fork.
 
 ## Optional Cloudflare edge
 
