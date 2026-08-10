@@ -4,12 +4,15 @@
 Design rules:
 - first Blogger label = Primary Silo
 - template source remains English-only
-- adapter is embedded in Blogger XML (no external JS runtime dependency)
-- graph JSON is loaded from Raw GitHub by current blog hostname
-- graph failure automatically falls back to Blogger feeds
-- a valid graph with zero related posts is still valid precomputed mode
+- adapter is embedded in Blogger XML
+- Cloudflare edge is optional and discovered through a repository manifest
+- Raw GitHub is the precomputed fallback
+- Blogger feeds are the final runtime fallback
+- forks automatically point to their own repository when Actions runs
 """
 from pathlib import Path
+import html
+import os
 import re
 import xml.etree.ElementTree as ET
 
@@ -17,10 +20,13 @@ THEME = Path("theme/SIA-Infinity-AI-Blogger-Template-v0.1.xml")
 GENERATOR = Path("generator/generate_graph.py")
 ADAPTER = Path("assets/sia-graph-adapter-v0.1.js")
 
-RAW_GRAPH_BASE = (
-    "https://raw.githubusercontent.com/dilipnachna/"
-    "SIA-Infinity-AI-Blogger-Template/main/public/graphs/"
-)
+REPOSITORY = os.environ.get(
+    "GITHUB_REPOSITORY",
+    "dilipnachna/SIA-Infinity-AI-Blogger-Template",
+).strip()
+RAW_PUBLIC_BASE = f"https://raw.githubusercontent.com/{REPOSITORY}/main/public/"
+RAW_GRAPH_BASE = RAW_PUBLIC_BASE + "graphs/"
+EDGE_MANIFEST_URL = RAW_PUBLIC_BASE + "sia-edge.json"
 MARKER = "SIA HYBRID GRAPH RUNTIME v0.1"
 
 
@@ -61,41 +67,11 @@ def patch_generator(text: str) -> str:
 def patch_adapter(text: str) -> str:
     text = text.replace(
         "        if (!items.length) throw new Error('no-precomputed-related');\n\n",
-        ""
+        "",
     )
-
-    # Keep the Blogger template source English-only. Unicode-language content
-    # can still be tokenized; the runtime simply does not hardcode language-
-    # specific stopwords inside the XML.
-    normalize_re = re.compile(
-        r"  function normalize\(s\) \{.*?\n  \}\n\n  function tokens\(s\) \{.*?\n  \}\n\n  function setStatus",
-        re.S,
-    )
-    neutral = r'''  function normalize(s) {
-    return String(s || '')
-      .toLowerCase()
-      .replace(/[\u200b-\u200d\ufeff]/g, '')
-      .replace(/[,.!?;:()[\]{}"'“”‘’/\\|_\-]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-
-  function tokens(s) {
-    var stop = {
-      'the':1,'a':1,'an':1,'of':1,'in':1,'on':1,'for':1,'to':1,'and':1,'or':1,
-      'but':1,'with':1,'from':1,'by':1,'at':1,'as':1,'is':1,'are':1,'was':1,
-      'were':1,'be':1,'been':1,'this':1,'that':1,'these':1,'those':1,
-      'your':1,'you':1,'we':1,'our':1,'best':1,'latest':1
-    };
-    return normalize(s).split(' ').filter(function (w) {
-      return w.length > 1 && !stop[w];
-    });
-  }
-
-  function setStatus'''
-    if normalize_re.search(text):
-        text = normalize_re.sub(lambda _m: neutral, text, count=1)
-
+    text = text.replace("graphCacheMinutes: 360", "graphCacheMinutes: 30")
+    if re.search(r"[\u0900-\u097F]", text):
+        raise RuntimeError("Adapter contains Devanagari source text")
     return text
 
 
@@ -105,8 +81,11 @@ def runtime_block(adapter_source: str) -> str:
     <script>
     //<![CDATA[
     window.SIA_CONFIG = window.SIA_CONFIG || {{}};
+    window.SIA_CONFIG.edgeManifestUrl = '{EDGE_MANIFEST_URL}';
     window.SIA_CONFIG.graphUrl = '{RAW_GRAPH_BASE}' + window.location.hostname + '/sia-graph.json';
     window.SIA_CONFIG.maxRelated = 6;
+    window.SIA_CONFIG.graphCacheMinutes = 30;
+    window.SIA_CONFIG.edgeManifestCacheMinutes = 60;
     window.SIA_CONFIG.relatedTarget = 'related-posts-list';
     window.SIA_CONFIG.statusTarget = 'sia-hybrid-status';
     window.SIA_CONFIG.currentLabelsTarget = 'post-labels-data';
@@ -187,8 +166,12 @@ def patch_theme(text: str, adapter_source: str) -> str:
         text = text.replace("</body>", block + "\n</body>", 1)
 
     text = text.replace(
-        "Primary Silo + canonical permalink strategy + English-only source",
         "Primary Silo + hybrid precomputed graph + safe Blogger fallback + canonical permalink strategy + English-only source",
+        "Primary Silo + Cloudflare edge + GitHub precomputed graph + safe Blogger fallback + canonical permalink strategy + English-only source",
+    )
+    text = text.replace(
+        "Primary Silo + canonical permalink strategy + English-only source",
+        "Primary Silo + Cloudflare edge + GitHub precomputed graph + safe Blogger fallback + canonical permalink strategy + English-only source",
     )
     return text
 
@@ -204,11 +187,19 @@ def main():
 
     ET.parse(THEME)
     compile(generator, str(GENERATOR), "exec")
-    if re.search(r"[\u0900-\u097F]", theme):
+
+    decoded_theme = html.unescape(theme)
+    if re.search(r"[\u0900-\u097F]", decoded_theme):
         raise RuntimeError("Universal Blogger XML contains Devanagari source text")
     if "no-precomputed-related" in adapter:
         raise RuntimeError("Adapter still downgrades empty valid graphs")
-    print("SIA v0.1 self-contained English-only hybrid graph runtime validated")
+    if REPOSITORY not in theme:
+        raise RuntimeError("Blogger runtime is not normalized to the current repository")
+
+    print(
+        "SIA v0.1 Cloudflare -> GitHub -> Blogger runtime validated for "
+        + REPOSITORY
+    )
 
 
 if __name__ == "__main__":
