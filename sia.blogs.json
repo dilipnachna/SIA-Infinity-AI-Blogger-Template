@@ -3,15 +3,18 @@
   "blogs": [
     {
       "url": "https://dilipnachna.blogspot.com",
-      "enabled": true
+      "enabled": true,
+      "community": true
     },
     {
       "url": "https://bestbloginhindi.blogspot.com",
-      "enabled": true
+      "enabled": true,
+      "community": true
     },
     {
       "url": "https://sia-infinity.blogspot.com",
-      "enabled": true
+      "enabled": true,
+      "community": true
     }
   ]
 }
