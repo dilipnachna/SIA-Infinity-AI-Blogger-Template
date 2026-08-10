@@ -38,11 +38,12 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Normalize v0.1 hybrid runtime for this fork
+      - name: Normalize v0.1 theme and intelligence runtime
         run: |
           python scripts/activate_hybrid_graph.py
           python scripts/activate_fibonacci_knn.py
           python scripts/activate_hybrid_graph.py
+          python scripts/activate_social_community.py
 
       - name: Test Fibonacci-KNN ranking
         run: |
@@ -59,7 +60,7 @@ jobs:
 
       - name: Validate v0.1 outputs
         run: |
-          python -m py_compile generator/generate_graph.py scripts/generate_all_graphs.py scripts/update_edge_manifest.py scripts/activate_fibonacci_knn.py scripts/test_fibonacci_knn.py
+          python -m py_compile generator/generate_graph.py scripts/generate_all_graphs.py scripts/update_edge_manifest.py scripts/activate_fibonacci_knn.py scripts/test_fibonacci_knn.py scripts/activate_social_community.py
           python - <<'PY'
           import html
           import json
@@ -98,6 +99,19 @@ jobs:
               raise SystemExit('Universal Blogger XML contains Devanagari source text')
           if 'fibonacci_knn_fallback' not in theme:
               raise SystemExit('Blogger XML is missing Fibonacci-KNN fallback')
+
+          required_theme_markers = [
+              "name='sia-template'",
+              "class='share-btn linkedin'",
+              "class='share-btn reddit'",
+              "class='share-btn pinterest'",
+              "class='native-share native-share-btn'",
+              'Explore the SIA Blogger Community',
+              '// Share: Native Web Share',
+          ]
+          missing = [marker for marker in required_theme_markers if marker not in theme]
+          if missing:
+              raise SystemExit('Blogger XML is missing social/community markers: ' + ', '.join(missing))
           print('Blogger XML validation OK')
           PY
 
@@ -114,7 +128,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "Graph and source are already current"
           else
-            git commit -m "Refresh SIA v0.1 Fibonacci-KNN intelligence graphs"
+            git commit -m "Refresh SIA v0.1 theme and intelligence graphs"
             git push
           fi
 
