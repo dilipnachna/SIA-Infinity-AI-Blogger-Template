@@ -1,0 +1,12 @@
+/*
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, HEAD, OPTIONS
+  Access-Control-Allow-Headers: *
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+
+/graphs/*
+  Cache-Control: public, max-age=300, s-maxage=1800, stale-while-revalidate=3600
+
+/sia-edge.json
+  Cache-Control: public, max-age=300, s-maxage=300
