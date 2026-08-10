@@ -41,6 +41,8 @@ jobs:
       - name: Normalize v0.1 hybrid runtime for this fork
         run: |
           python scripts/activate_hybrid_graph.py
+          python scripts/activate_fibonacci_knn.py
+          python scripts/activate_hybrid_graph.py
 
       - name: Generate registered Blogger graphs
         run: |
@@ -53,7 +55,7 @@ jobs:
 
       - name: Validate v0.1 outputs
         run: |
-          python -m py_compile generator/generate_graph.py scripts/generate_all_graphs.py scripts/update_edge_manifest.py
+          python -m py_compile generator/generate_graph.py scripts/generate_all_graphs.py scripts/update_edge_manifest.py scripts/activate_fibonacci_knn.py
           python - <<'PY'
           import html
           import json
@@ -68,14 +70,30 @@ jobs:
           for path in graphs:
               graph = json.loads(path.read_text(encoding='utf-8'))
               assert graph['sia']['format'] == 'sia-symbolic-graph'
+              assert graph['sia']['related_engine'] == 'fibonacci-knn-v0.1'
+              assert graph['sia']['fibonacci_weights'] == {
+                  'entity': 34.0,
+                  'silo': 21.0,
+                  'title': 13.0,
+                  'label': 8.0,
+                  'content_type': 5.0,
+                  'facet': 3.0,
+              }
               assert isinstance(graph.get('posts'), dict)
-              print('Validated', path)
+              for post in graph['posts'].values():
+                  for item in post.get('related', []):
+                      assert 0 <= item['score'] <= 100
+                      assert 0 <= item['distance'] <= 1
+                      assert 'fibonacci_knn' in item['reasons']
+              print('Validated Fibonacci-KNN graph', path)
 
           theme_path = Path('theme/SIA-Infinity-AI-Blogger-Template-v0.1.xml')
           theme = theme_path.read_text(encoding='utf-8')
           ET.parse(theme_path)
           if re.search(r'[\u0900-\u097F]', html.unescape(theme)):
               raise SystemExit('Universal Blogger XML contains Devanagari source text')
+          if 'fibonacci_knn_fallback' not in theme:
+              raise SystemExit('Blogger XML is missing Fibonacci-KNN fallback')
           print('Blogger XML validation OK')
           PY
 
@@ -92,7 +110,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "Graph and source are already current"
           else
-            git commit -m "Refresh SIA v0.1 intelligence graphs"
+            git commit -m "Refresh SIA v0.1 Fibonacci-KNN intelligence graphs"
             git push
           fi
 
