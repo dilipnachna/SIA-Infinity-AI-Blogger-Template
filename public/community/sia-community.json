@@ -2,14 +2,14 @@
   "sia": {
     "format": "sia-blogger-community-registry",
     "version": "0.1",
-    "generated_at": null,
+    "generated_at": "2026-08-10T16:50:56+00:00",
     "root_repository": "dilipnachna/SIA-Infinity-AI-Blogger-Template",
     "mode": "verified-public-fork-discovery",
     "privacy": "No visitor telemetry. Candidate blogs come from public sia.blogs.json registries and are verified server-side."
   },
   "verified_count": 0,
-  "candidate_count": 0,
-  "repository_count": 0,
-  "source_registry_count": 0,
+  "candidate_count": 1,
+  "repository_count": 1,
+  "source_registry_count": 1,
   "blogs": []
 }
