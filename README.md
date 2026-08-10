@@ -18,7 +18,10 @@ Current stable capabilities include:
 - English-only Blogger template UI/source strings
 - canonical Blogger permalink strategy
 - first Blogger label as the Primary Semantic Silo
-- precomputed symbolic content graph with safe Blogger-feed fallback
+- precomputed symbolic content graphs
+- optional Cloudflare edge delivery
+- Raw GitHub precomputed fallback
+- Blogger JSON-feed runtime fallback
 - contextual internal linking from graph relationships
 - BlogPosting `articleSection` from the Primary Silo
 - breadcrumbs, TOC, author box, sharing and native comments
@@ -48,66 +51,139 @@ Content types, facets and entity candidates are supporting semantic signals. The
 
 The theme does not fake or rewrite Blogger permalinks with JavaScript.
 
-## Hybrid intelligence runtime
+## Three-level runtime
 
-v0.1 now uses a self-contained hybrid runtime:
+The v0.1 runtime uses this priority:
 
-1. The Blogger XML derives the graph path from the current blog hostname.
-2. It requests that blog's precomputed `sia-graph.json` from the public GitHub repository.
-3. If the graph exists and contains the current post, the related engine uses precomputed scores and reasons.
-4. If the graph is unavailable, invalid, or does not contain the current post, the engine falls back to Blogger JSON feeds.
+```text
+Cloudflare Static Edge
+        ↓ unavailable / stale / post missing
+Raw GitHub Graph
+        ↓ unavailable / post missing
+Blogger Feed Fallback
+```
 
-The browser adapter is embedded inside the official Blogger XML, so the live template does not depend on an externally hosted JavaScript file.
+A valid precomputed graph with zero related posts remains valid precomputed mode. The system does not downgrade just because a new or small blog has no sibling relationship yet.
 
-## Precomputed graph pipeline
+The browser adapter is embedded inside the official Blogger XML, so the live template does not depend on an externally hosted JavaScript runtime.
+
+## Fork-safe architecture
+
+When the GitHub Action runs inside a fork, `scripts/activate_hybrid_graph.py` reads `GITHUB_REPOSITORY` and rewrites the embedded runtime to that fork's own Raw GitHub path.
+
+This allows each user to own their own graph pipeline instead of depending on the original repository for precomputed data.
+
+## Register one or more Blogger blogs
+
+Edit `sia.blogs.json`:
+
+```json
+{
+  "version": "0.1",
+  "blogs": [
+    {
+      "url": "https://your-first-blog.blogspot.com",
+      "enabled": true
+    },
+    {
+      "url": "https://your-second-blog.blogspot.com",
+      "enabled": true
+    }
+  ]
+}
+```
+
+The hourly workflow creates one graph per hostname:
+
+```text
+public/graphs/your-first-blog.blogspot.com/sia-graph.json
+public/graphs/your-second-blog.blogspot.com/sia-graph.json
+```
+
+The current Blogger hostname automatically selects its own graph.
+
+## Graph generation
 
 Main components:
 
 - `generator/generate_graph.py`
+- `scripts/generate_all_graphs.py`
 - `assets/sia-graph-adapter-v0.1.js`
 - `scripts/activate_hybrid_graph.py`
 - `.github/workflows/sia-cron.yml`
 
-The workflow runs on schedule, manual dispatch, and relevant source changes. It reads the public Blogger JSON feed, generates the graph, validates the graph and Blogger XML, and commits the current graph back to the repository.
+The workflow runs hourly, by manual dispatch, and after relevant source changes. It generates all enabled graphs, validates the JSON and Blogger XML, and commits the current graphs back to the fork.
 
-Graph files use a hostname-based layout:
+## Optional Cloudflare edge
+
+SIA v0.1 uses **Cloudflare Workers Static Assets** as an optional static edge layer. The repository contains:
+
+- `wrangler.jsonc`
+- `public/_headers`
+- `public/sia-edge.json`
+- `scripts/update_edge_manifest.py`
+
+Cloudflare is not required. If Cloudflare credentials are absent or an edge request fails, the runtime automatically tries Raw GitHub and then Blogger feeds.
+
+### GitHub repository secrets
+
+To activate Cloudflare deployment, add these two Actions secrets to your fork:
 
 ```text
-public/graphs/<blog-hostname>/sia-graph.json
+CLOUDFLARE_ACCOUNT_ID
+CLOUDFLARE_API_TOKEN
 ```
 
-Example test graph:
+Use a Cloudflare API token scoped to the account used for the Worker deployment. Do not commit the token to the repository.
+
+After a successful Wrangler deployment, the workflow stores the returned HTTPS deployment base URL in:
 
 ```text
-public/graphs/dilipnachna.blogspot.com/sia-graph.json
+public/sia-edge.json
 ```
 
-This keeps the Blogger theme universal: the current hostname selects its own graph. If a hostname does not yet have a graph, Blogger fallback mode remains available.
+The Blogger runtime discovers that manifest automatically and tries the Cloudflare graph first.
 
-## Configure a blog graph
+## Cloudflare static asset layout
 
-Edit `sia.config.json`:
+The same `public/` directory is deployed to Cloudflare:
 
-```json
-{
-  "blog_url": "https://yourblog.blogspot.com",
-  "output": "public/graphs/yourblog.blogspot.com/sia-graph.json"
-}
+```text
+public/
+  _headers
+  sia-edge.json
+  sia-graph-adapter-v0.1.js
+  graphs/
+    <blog-hostname>/
+      sia-graph.json
 ```
 
-Run locally:
+Graph responses are configured for public CORS and short edge/browser caching so hourly graph updates can become visible without a long client-side cache delay.
+
+## Install flow for a fork
+
+1. Fork this repository.
+2. Edit `sia.blogs.json` and add your Blogger URL or URLs.
+3. Run **Build SIA Intelligence Graph** once from GitHub Actions.
+4. Download or copy `theme/SIA-Infinity-AI-Blogger-Template-v0.1.xml` from your fork after that run.
+5. Install that XML in Blogger.
+6. Optional: add `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` repository secrets, then run the workflow again.
+
+Without Cloudflare, precomputed graphs still work from Raw GitHub. Without a current graph, Blogger fallback remains available immediately.
+
+## Local graph generation
+
+For all registered blogs:
 
 ```bash
-python generator/generate_graph.py --config sia.config.json
+python scripts/generate_all_graphs.py
 ```
 
-## GitHub Pages
-
-GitHub Pages is an optional mirror, not a runtime requirement. The workflow detects whether Pages is enabled. If it is enabled, the `public/` directory can also be deployed through Pages; if it is not enabled, the committed Raw GitHub graph remains the primary graph source.
+For one manually configured graph, `generator/generate_graph.py` can still be used with `sia.config.json`.
 
 ## Current test status
 
-The current test source is `dilipnachna.blogspot.com`. Its graph is generated successfully. With only one published post currently present in the public feed, the graph can validate precomputed mode but cannot yet produce sibling related-post relationships. As more posts are published, scheduled graph refreshes can populate those relationships automatically.
+The current test registry contains `dilipnachna.blogspot.com`. Its graph generation is working. A blog with only one public post can validate the precomputed pipeline but naturally has no sibling related-post relationship until additional posts exist.
 
 ## Version policy
 
