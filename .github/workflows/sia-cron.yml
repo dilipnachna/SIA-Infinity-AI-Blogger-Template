@@ -10,6 +10,7 @@ on:
       - "generator/**"
       - "assets/**"
       - "scripts/**"
+      - "schemas/**"
       - "sia.config.json"
       - "sia.blogs.json"
       - "wrangler.jsonc"
@@ -38,14 +39,19 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Normalize v0.1 theme and intelligence runtime
+      - name: Normalize v0.1 adaptive theme and intelligence runtime
         run: |
           python scripts/activate_hybrid_graph.py
           python scripts/activate_fibonacci_knn.py
           python scripts/activate_hybrid_graph.py
           python scripts/activate_social_community.py
+          python scripts/activate_adaptive_system_v2.py
 
-      - name: Test Fibonacci-KNN ranking
+      - name: Validate adaptive configuration
+        run: |
+          python scripts/validate_configs.py
+
+      - name: Test adaptive Fibonacci-KNN ranking
         run: |
           python scripts/test_fibonacci_knn.py
 
@@ -68,9 +74,19 @@ jobs:
           mkdir -p public
           cp assets/sia-graph-adapter-v0.1.js public/sia-graph-adapter-v0.1.js
 
-      - name: Validate v0.1 outputs
+      - name: Forensic validate v0.1 outputs
         run: |
-          python -m py_compile generator/generate_graph.py scripts/generate_all_graphs.py scripts/update_edge_manifest.py scripts/activate_fibonacci_knn.py scripts/test_fibonacci_knn.py scripts/activate_social_community.py scripts/build_community_registry.py
+          python -m py_compile \
+            generator/generate_graph.py \
+            scripts/generate_all_graphs.py \
+            scripts/update_edge_manifest.py \
+            scripts/activate_fibonacci_knn.py \
+            scripts/test_fibonacci_knn.py \
+            scripts/activate_social_community.py \
+            scripts/activate_adaptive_system.py \
+            scripts/activate_adaptive_system_v2.py \
+            scripts/build_community_registry.py \
+            scripts/validate_configs.py
           python - <<'PY'
           import html
           import json
@@ -82,59 +98,107 @@ jobs:
           if not graphs:
               raise SystemExit('No SIA graphs were generated')
 
+          expected_weights = {
+              'entity': 34.0,
+              'silo': 21.0,
+              'title': 13.0,
+              'label': 8.0,
+              'content_type': 5.0,
+              'facet': 3.0,
+          }
+
           for path in graphs:
               graph = json.loads(path.read_text(encoding='utf-8'))
-              assert graph['sia']['format'] == 'sia-symbolic-graph'
-              assert graph['sia']['related_engine'] == 'fibonacci-knn-v0.1'
-              assert graph['sia']['fibonacci_weights'] == {
-                  'entity': 34.0,
-                  'silo': 21.0,
-                  'title': 13.0,
-                  'label': 8.0,
-                  'content_type': 5.0,
-                  'facet': 3.0,
-              }
+              sia = graph['sia']
+              assert sia['format'] == 'sia-symbolic-graph'
+              assert sia['related_engine'] == 'sia-fibonacci-knn-v0.1'
+              assert sia['semantic_similarity_weights'] == expected_weights
+              assert sia['fibonacci_weights'] == expected_weights
+              assert sia['related_max_k'] == 55
+              assert sia['related_display_limit'] == 6
+              assert sia['fibonacci_knn']['k_rule'] == 'min(N,55,max(3,FibFloor(sqrt(N))))'
+              assert sia['fibonacci_knn']['rank_weighting'] == 'normalized_phi_decay'
+              assert 1.618 < sia['fibonacci_knn']['phi'] < 1.619
               assert isinstance(graph.get('posts'), dict)
               for post in graph['posts'].values():
+                  previous_weight = None
                   for item in post.get('related', []):
                       assert 0 <= item['score'] <= 100
+                      assert item['score'] == item['similarity']
                       assert 0 <= item['distance'] <= 1
+                      assert 0 < item['rank_weight'] <= 1
+                      assert item['recall_score'] >= 0
                       assert 'fibonacci_knn' in item['reasons']
-              print('Validated Fibonacci-KNN graph', path)
+                      assert 'adaptive_fibonacci_k' in item['reasons']
+                      assert 'golden_ratio_rank' in item['reasons']
+                      if previous_weight is not None:
+                          assert item['rank_weight'] < previous_weight
+                      previous_weight = item['rank_weight']
+              print('Validated adaptive Fibonacci-KNN graph', path)
 
           community_path = Path('public/community/sia-community.json')
           if community_path.exists():
               community = json.loads(community_path.read_text(encoding='utf-8'))
               assert community['sia']['format'] == 'sia-blogger-community-registry'
               assert community['sia']['version'] == '0.1'
+              assert community['sia']['mode'] == 'opt-in-repository-bound-blogspot-verification'
               assert isinstance(community.get('blogs'), list)
               assert community.get('verified_count') == len(community['blogs'])
+              assert community.get('current_verified_count', 0) + community.get('grace_verified_count', 0) == community['verified_count']
               for blog in community['blogs']:
-                  assert blog['url'].startswith(('https://', 'http://'))
+                  assert blog['url'].startswith('https://')
+                  assert blog['hostname'].endswith('.blogspot.com')
                   assert blog['template'].startswith('SIA-Infinity-AI-Blogger-Template-v')
+                  assert blog['source_repository']
+                  assert blog['verification_state'] in {'current', 'grace'}
               print('SIA Blogger community registry validation OK')
 
           theme_path = Path('theme/SIA-Infinity-AI-Blogger-Template-v0.1.xml')
           theme = theme_path.read_text(encoding='utf-8')
           ET.parse(theme_path)
-          if re.search(r'[\u0900-\u097F]', html.unescape(theme)):
+          decoded = html.unescape(theme)
+          if re.search(r'[\u0900-\u097F]', decoded):
               raise SystemExit('Universal Blogger XML contains Devanagari source text')
-          if 'fibonacci_knn_fallback' not in theme:
-              raise SystemExit('Blogger XML is missing Fibonacci-KNN fallback')
 
           required_theme_markers = [
               "name='sia-template'",
-              "class='share-btn linkedin'",
-              "class='share-btn reddit'",
-              "class='share-btn pinterest'",
-              "class='share-btn native-share native-share-btn'",
+              "name='sia-community-repository'",
+              'SIA Adaptive Heading Architecture v0.1',
+              "<h1 class='post-title'><data:post.title/></h1>",
+              "id='sia-featured-image'",
+              "fetchpriority='high'",
+              "width='1200'",
+              "height='675'",
+              'expr:srcset=',
+              'SIA Featured Image URL Dedupe',
+              'Share: Encoded social actions',
+              'encodeURIComponent',
+              'SIA WebSite JSON-LD v0.1',
+              'SIA BreadcrumbList JSON-LD v0.1',
+              'max-snippet:-1',
+              "id='footer-links'",
               'Explore the SIA Blogger Community',
-              '// Share: Native Web Share',
+              'fibonacci_knn_fallback',
+              'adaptiveFibonacciK',
+              'goldenRankWeights',
           ]
           missing = [marker for marker in required_theme_markers if marker not in theme]
           if missing:
-              raise SystemExit('Blogger XML is missing social/community markers: ' + ', '.join(missing))
-          print('Blogger XML validation OK')
+              raise SystemExit('Blogger XML is missing adaptive markers: ' + ', '.join(missing))
+
+          forbidden = [
+              "href='/p/about.html'",
+              "href='/p/contact.html'",
+              "href='/p/privacy-policy.html'",
+              "href='/p/disclaimer.html'",
+              'let parentLink = bodyImg.parentNode;',
+              '                  Advertisement\n',
+          ]
+          present = [marker for marker in forbidden if marker in theme]
+          if present:
+              raise SystemExit('Blogger XML contains retired v0.1 patterns: ' + ', '.join(present))
+
+          print('Blogger XML forensic validation OK')
           PY
 
       - name: Commit graph, community and normalized source
@@ -149,9 +213,9 @@ jobs:
             public/graphs \
             public/community
           if git diff --cached --quiet; then
-            echo "Graph, community and source are already current"
+            echo "Adaptive graph, community and source are already current"
           else
-            git commit -m "Refresh SIA v0.1 intelligence and community registry"
+            git commit -m "Refresh SIA v0.1 adaptive intelligence and community"
             git push
           fi
 
