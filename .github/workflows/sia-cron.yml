@@ -49,6 +49,16 @@ jobs:
         run: |
           python scripts/test_fibonacci_knn.py
 
+      - name: Build verified SIA Blogger community registry
+        if: github.repository == 'dilipnachna/SIA-Infinity-AI-Blogger-Template'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/build_community_registry.py \
+            --root-repo dilipnachna/SIA-Infinity-AI-Blogger-Template \
+            --output public/community/sia-community.json \
+            --html-output public/community/index.html
+
       - name: Generate registered Blogger graphs
         run: |
           python scripts/generate_all_graphs.py --registry sia.blogs.json --base-config sia.config.json
@@ -60,7 +70,7 @@ jobs:
 
       - name: Validate v0.1 outputs
         run: |
-          python -m py_compile generator/generate_graph.py scripts/generate_all_graphs.py scripts/update_edge_manifest.py scripts/activate_fibonacci_knn.py scripts/test_fibonacci_knn.py scripts/activate_social_community.py
+          python -m py_compile generator/generate_graph.py scripts/generate_all_graphs.py scripts/update_edge_manifest.py scripts/activate_fibonacci_knn.py scripts/test_fibonacci_knn.py scripts/activate_social_community.py scripts/build_community_registry.py
           python - <<'PY'
           import html
           import json
@@ -92,6 +102,18 @@ jobs:
                       assert 'fibonacci_knn' in item['reasons']
               print('Validated Fibonacci-KNN graph', path)
 
+          community_path = Path('public/community/sia-community.json')
+          if community_path.exists():
+              community = json.loads(community_path.read_text(encoding='utf-8'))
+              assert community['sia']['format'] == 'sia-blogger-community-registry'
+              assert community['sia']['version'] == '0.1'
+              assert isinstance(community.get('blogs'), list)
+              assert community.get('verified_count') == len(community['blogs'])
+              for blog in community['blogs']:
+                  assert blog['url'].startswith(('https://', 'http://'))
+                  assert blog['template'].startswith('SIA-Infinity-AI-Blogger-Template-v')
+              print('SIA Blogger community registry validation OK')
+
           theme_path = Path('theme/SIA-Infinity-AI-Blogger-Template-v0.1.xml')
           theme = theme_path.read_text(encoding='utf-8')
           ET.parse(theme_path)
@@ -115,7 +137,7 @@ jobs:
           print('Blogger XML validation OK')
           PY
 
-      - name: Commit graph and normalized source
+      - name: Commit graph, community and normalized source
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -124,11 +146,12 @@ jobs:
             generator/generate_graph.py \
             assets/sia-graph-adapter-v0.1.js \
             public/sia-graph-adapter-v0.1.js \
-            public/graphs
+            public/graphs \
+            public/community
           if git diff --cached --quiet; then
-            echo "Graph and source are already current"
+            echo "Graph, community and source are already current"
           else
-            git commit -m "Refresh SIA v0.1 theme and intelligence graphs"
+            git commit -m "Refresh SIA v0.1 intelligence and community registry"
             git push
           fi
 
