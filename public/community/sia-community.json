@@ -2,14 +2,24 @@
   "sia": {
     "format": "sia-blogger-community-registry",
     "version": "0.1",
-    "generated_at": "2026-08-10T18:03:05+00:00",
+    "generated_at": "2026-08-10T18:24:12+00:00",
     "root_repository": "dilipnachna/SIA-Infinity-AI-Blogger-Template",
     "mode": "verified-public-fork-discovery",
     "privacy": "No visitor telemetry. Candidate blogs come from public sia.blogs.json registries and are verified server-side."
   },
-  "verified_count": 0,
-  "candidate_count": 1,
+  "verified_count": 1,
+  "candidate_count": 3,
   "repository_count": 1,
   "source_registry_count": 1,
-  "blogs": []
+  "blogs": [
+    {
+      "hostname": "sia-infinity.blogspot.com",
+      "url": "https://sia-infinity.blogspot.com/",
+      "title": "SIA-Infinity AI Blogger Template",
+      "template": "SIA-Infinity-AI-Blogger-Template-v0.1",
+      "version": "0.1",
+      "first_seen": "2026-08-10T18:24:12+00:00",
+      "last_verified_at": "2026-08-10T18:24:12+00:00"
+    }
+  ]
 }
