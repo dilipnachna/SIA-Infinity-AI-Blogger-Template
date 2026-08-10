@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/dilipnachna/SIA-Infinity-AI-Blogger-Template/blob/main/schemas/sia-blogs.schema.json",
+  "title": "SIA-Infinity Blogger Registry v0.1",
+  "type": "object",
+  "required": ["version", "blogs"],
+  "properties": {
+    "version": {"const": "0.1"},
+    "blogs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["url", "enabled"],
+        "properties": {
+          "url": {"type": "string", "format": "uri"},
+          "enabled": {"type": "boolean"},
+          "community": {"type": "boolean", "default": false},
+          "max_posts": {"type": "integer", "minimum": 1, "maximum": 10000},
+          "entity_min_occurrences": {"type": "integer", "minimum": 2, "maximum": 1000},
+          "related_display_limit": {"type": "integer", "minimum": 1, "maximum": 12},
+          "related_max_k": {"type": "integer", "minimum": 3, "maximum": 55},
+          "related_min_similarity": {"type": "number", "minimum": 0, "maximum": 100},
+          "related_limit": {"type": "integer", "minimum": 1},
+          "related_min_score": {"type": "number", "minimum": 0, "maximum": 100},
+          "compact": {"type": "boolean"},
+          "aliases": {
+            "type": "object",
+            "properties": {
+              "content_types": {"type": "object"},
+              "facets": {"type": "object"},
+              "entities": {"type": "object"}
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
