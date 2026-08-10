@@ -52,9 +52,13 @@ def build_one(base_config: dict, item: dict) -> Path:
     config["output"] = output.as_posix()
     config["aliases"] = merge_aliases(base_config, item.get("aliases"))
 
+    # New adaptive controls plus legacy v0.1 controls for fork compatibility.
     for key in (
         "max_posts",
         "entity_min_occurrences",
+        "related_display_limit",
+        "related_max_k",
+        "related_min_similarity",
         "related_limit",
         "related_min_score",
         "compact",
