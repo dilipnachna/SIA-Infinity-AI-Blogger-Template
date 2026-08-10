@@ -132,7 +132,7 @@ def main() -> None:
         "class='share-btn linkedin'",
         "class='share-btn reddit'",
         "class='share-btn pinterest'",
-        "class='native-share native-share-btn'",
+        "class='share-btn native-share native-share-btn'",
         "Explore the SIA Blogger Community",
         "// Share: Native Web Share",
     ]
