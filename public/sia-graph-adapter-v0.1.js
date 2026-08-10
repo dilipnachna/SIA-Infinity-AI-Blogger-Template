@@ -1,13 +1,11 @@
 /* SIA-Infinity Hybrid Graph Adapter v0.1
  * ----------------------------------------
- * Precomputed mode:
- *   Fetches sia-graph.json and uses precomputed related relationships.
+ * Priority:
+ *   1. Cloudflare edge graph when configured by the repository manifest.
+ *   2. Raw GitHub precomputed graph.
+ *   3. Blogger JSON feed fallback.
  *
- * Fallback mode:
- *   If graph is unavailable / invalid / current post not found,
- *   uses Blogger JSON feed + labels/title for lightweight scoring.
- *
- * No paid API. No dependency.
+ * No paid AI API. No runtime dependency.
  */
 (function (window, document) {
   'use strict';
@@ -15,12 +13,15 @@
   var VERSION = '0.1.0';
   var DEFAULTS = {
     graphUrl: '',
+    graphUrls: [],
+    edgeManifestUrl: '',
     relatedTarget: 'related-posts-list',
     statusTarget: 'sia-hybrid-status',
     currentLabelsTarget: 'post-labels-data',
     currentTitleSelector: '.post-title',
     maxRelated: 6,
-    graphCacheMinutes: 360,
+    graphCacheMinutes: 30,
+    edgeManifestCacheMinutes: 60,
     fallbackMaxResults: 40,
     minFallbackScore: 8
   };
@@ -30,6 +31,21 @@
     for (k in a) if (Object.prototype.hasOwnProperty.call(a, k)) out[k] = a[k];
     for (k in b) if (Object.prototype.hasOwnProperty.call(b, k)) out[k] = b[k];
     return out;
+  }
+
+  function unique(items) {
+    var seen = {}, out = [];
+    (items || []).forEach(function (item) {
+      var value = String(item || '').trim();
+      if (!value || seen[value]) return;
+      seen[value] = true;
+      out.push(value);
+    });
+    return out;
+  }
+
+  function stripSlash(value) {
+    return String(value || '').replace(/\/+$/, '');
   }
 
   var userConfig = window.SIA_CONFIG || {};
@@ -45,6 +61,14 @@
       return u.href.replace(/\/$/, '');
     } catch (e) {
       return String(url || '').split('#')[0].split('?')[0].replace(/\/$/, '');
+    }
+  }
+
+  function hostnameOf(url) {
+    try {
+      return new URL(url, window.location.href).hostname.toLowerCase();
+    } catch (e) {
+      return '';
     }
   }
 
@@ -83,6 +107,7 @@
     list.innerHTML = '';
     if (!items || !items.length) {
       list.innerHTML = '<li>No sufficiently relevant posts found.</li>';
+      list.setAttribute('data-sia-mode', mode || 'unknown');
       return;
     }
 
@@ -102,30 +127,30 @@
     list.setAttribute('data-sia-mode', mode || 'unknown');
   }
 
-  function cacheKey(url) {
+  function graphCacheKey(url) {
     return 'sia_graph_v01:' + url;
   }
 
-  function getCachedGraph(url) {
+  function manifestCacheKey(url) {
+    return 'sia_edge_manifest_v01:' + url;
+  }
+
+  function readTimedCache(key, maxMinutes) {
     try {
-      var raw = localStorage.getItem(cacheKey(url));
+      var raw = localStorage.getItem(key);
       if (!raw) return null;
       var obj = JSON.parse(raw);
-      if (!obj || !obj.savedAt || !obj.graph) return null;
-      var age = Date.now() - obj.savedAt;
-      if (age > cfg.graphCacheMinutes * 60 * 1000) return null;
-      return obj.graph;
+      if (!obj || !obj.savedAt || obj.value === undefined) return null;
+      if ((Date.now() - obj.savedAt) > maxMinutes * 60 * 1000) return null;
+      return obj.value;
     } catch (e) {
       return null;
     }
   }
 
-  function saveCachedGraph(url, graph) {
+  function writeTimedCache(key, value) {
     try {
-      localStorage.setItem(cacheKey(url), JSON.stringify({
-        savedAt: Date.now(),
-        graph: graph
-      }));
+      localStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), value: value }));
     } catch (e) {}
   }
 
@@ -139,13 +164,59 @@
     );
   }
 
-  async function loadGraph() {
-    if (!cfg.graphUrl) throw new Error('graph-url-not-configured');
+  function graphMatchesCurrentBlog(graph) {
+    var graphHost = graph && graph.sia ? hostnameOf(graph.sia.blog_url) : '';
+    return !graphHost || graphHost === window.location.hostname.toLowerCase();
+  }
 
-    var cached = getCachedGraph(cfg.graphUrl);
-    if (cached && validateGraph(cached)) return cached;
+  async function loadEdgeManifest() {
+    if (!cfg.edgeManifestUrl) return null;
 
-    var response = await fetch(cfg.graphUrl, {
+    var cached = readTimedCache(
+      manifestCacheKey(cfg.edgeManifestUrl),
+      cfg.edgeManifestCacheMinutes
+    );
+    if (cached) return cached;
+
+    try {
+      var response = await fetch(cfg.edgeManifestUrl, {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'omit',
+        cache: 'no-cache'
+      });
+      if (!response.ok) return null;
+      var manifest = await response.json();
+      if (!manifest || typeof manifest !== 'object') return null;
+      writeTimedCache(manifestCacheKey(cfg.edgeManifestUrl), manifest);
+      return manifest;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function candidateGraphUrls() {
+    var urls = [];
+    var manifest = await loadEdgeManifest();
+    if (manifest && manifest.cloudflare_base_url) {
+      urls.push(
+        stripSlash(manifest.cloudflare_base_url) +
+        '/graphs/' + window.location.hostname + '/sia-graph.json'
+      );
+    }
+
+    if (Array.isArray(cfg.graphUrls)) urls = urls.concat(cfg.graphUrls);
+    if (cfg.graphUrl) urls.push(cfg.graphUrl);
+    return unique(urls);
+  }
+
+  async function loadGraphFromUrl(url) {
+    var cached = readTimedCache(graphCacheKey(url), cfg.graphCacheMinutes);
+    if (cached && validateGraph(cached) && graphMatchesCurrentBlog(cached)) {
+      return cached;
+    }
+
+    var response = await fetch(url, {
       method: 'GET',
       mode: 'cors',
       credentials: 'omit',
@@ -155,8 +226,9 @@
 
     var graph = await response.json();
     if (!validateGraph(graph)) throw new Error('graph-invalid');
+    if (!graphMatchesCurrentBlog(graph)) throw new Error('graph-blog-mismatch');
 
-    saveCachedGraph(cfg.graphUrl, graph);
+    writeTimedCache(graphCacheKey(url), graph);
     return graph;
   }
 
@@ -172,9 +244,35 @@
     return null;
   }
 
+  async function loadCurrentGraph() {
+    var urls = await candidateGraphUrls();
+    if (!urls.length) throw new Error('graph-url-not-configured');
+
+    var errors = [];
+    for (var i = 0; i < urls.length; i++) {
+      try {
+        var graph = await loadGraphFromUrl(urls[i]);
+        var current = findGraphPost(graph);
+        if (!current) {
+          errors.push('current-post-not-in-graph');
+          continue;
+        }
+        return {
+          graph: graph,
+          current: current,
+          url: urls[i],
+          source: i === 0 && urls.length > 1 ? 'edge' : 'github'
+        };
+      } catch (e) {
+        errors.push(e && e.message ? e.message : String(e));
+      }
+    }
+    throw new Error(errors.join('|') || 'graph-unavailable');
+  }
+
   function hydrateGraphRelated(graph, current) {
     var posts = graph.posts || {};
-    var refs = (current.post.related || []);
+    var refs = current.post.related || [];
     var out = [];
 
     refs.forEach(function (ref) {
@@ -254,12 +352,9 @@
   }
 
   async function fallbackRelated() {
-    var ctx = {
-      title: currentTitle(),
-      labels: currentLabels()
-    };
-
+    var ctx = { title: currentTitle(), labels: currentLabels() };
     var batches = [];
+
     if (ctx.labels.length) {
       for (var i = 0; i < Math.min(4, ctx.labels.length); i++) {
         try {
@@ -288,64 +383,54 @@
       if (key && key !== cleanUrl(window.location.href) && !byUrl[key]) byUrl[key] = p;
     });
 
-    var ranked = Object.keys(byUrl).map(function (key) {
+    return Object.keys(byUrl).map(function (key) {
       var p = byUrl[key];
       var s = fallbackScore(p, ctx);
-      return {
-        title: p.title,
-        url: p.url,
-        score: s.score,
-        reasons: s.reasons
-      };
+      return { title: p.title, url: p.url, score: s.score, reasons: s.reasons };
     }).filter(function (x) {
       return x.score >= cfg.minFallbackScore;
     }).sort(function (a, b) {
       return b.score - a.score || a.title.localeCompare(b.title);
-    });
-
-    return ranked.slice(0, cfg.maxRelated);
+    }).slice(0, cfg.maxRelated);
   }
 
   async function boot() {
     if (!document.getElementById(cfg.relatedTarget)) return;
 
-    if (cfg.graphUrl) {
-      try {
-        setStatus('Loading precomputed intelligence…', 'loading');
-        var graph = await loadGraph();
-        var current = findGraphPost(graph);
-        if (!current) throw new Error('current-post-not-in-graph');
+    try {
+      setStatus('Loading SIA precomputed intelligence...', 'loading');
+      var loaded = await loadCurrentGraph();
+      var items = hydrateGraphRelated(loaded.graph, loaded.current);
+      var mode = loaded.source === 'edge' ? 'precomputed-edge' : 'precomputed-github';
 
-        var items = hydrateGraphRelated(graph, current);
-        renderRelated(items, 'precomputed');
-        setStatus('SIA Precomputed Intelligence', 'precomputed');
+      renderRelated(items, mode);
+      setStatus(
+        loaded.source === 'edge' ? 'SIA Cloudflare Edge Intelligence' : 'SIA GitHub Intelligence',
+        mode
+      );
 
-        window.dispatchEvent(new CustomEvent('sia:hybrid-ready', {
-          detail: {
-            mode: 'precomputed',
-            version: VERSION,
-            currentPostId: current.id,
-            related: items
-          }
-        }));
-        return;
-      } catch (e) {
-        console.warn('[SIA v0.1] Precomputed mode unavailable, using fallback:', e.message || e);
-      }
+      window.dispatchEvent(new CustomEvent('sia:hybrid-ready', {
+        detail: {
+          mode: mode,
+          version: VERSION,
+          graphUrl: loaded.url,
+          currentPostId: loaded.current.id,
+          related: items
+        }
+      }));
+      return;
+    } catch (e) {
+      console.warn('[SIA v0.1] Precomputed sources unavailable, using Blogger fallback:', e.message || e);
     }
 
     try {
-      setStatus('Blogger fallback intelligence…', 'fallback-loading');
+      setStatus('Blogger fallback intelligence...', 'fallback-loading');
       var fallback = await fallbackRelated();
       renderRelated(fallback, 'fallback');
       setStatus('SIA Blogger Fallback Mode', 'fallback');
 
       window.dispatchEvent(new CustomEvent('sia:hybrid-ready', {
-        detail: {
-          mode: 'fallback',
-          version: VERSION,
-          related: fallback
-        }
+        detail: { mode: 'fallback', version: VERSION, related: fallback }
       }));
     } catch (e2) {
       console.warn('[SIA v0.1] Fallback failed:', e2);
@@ -357,7 +442,8 @@
     version: VERSION,
     config: cfg,
     boot: boot,
-    loadGraph: loadGraph,
+    candidateGraphUrls: candidateGraphUrls,
+    loadCurrentGraph: loadCurrentGraph,
     fallbackRelated: fallbackRelated
   };
 
@@ -366,5 +452,4 @@
   } else {
     boot();
   }
-
 })(window, document);
