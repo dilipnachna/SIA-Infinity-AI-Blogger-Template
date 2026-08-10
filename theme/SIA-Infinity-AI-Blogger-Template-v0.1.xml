@@ -108,6 +108,7 @@
     .share-btn.native-share { border-color: #cbd5e1; background: #fff; color: #0f172a; }
     .sia-community-row { margin-top: 10px; font-size: 13px; line-height: 1.6; }
     .sia-community-row a { font-weight: 700; }
+    .sia-community-count { margin-left: 4px; color: #166534; font-weight: 800; }
     .sia-community-separator { color: #94a3b8; padding: 0 6px; }
 
     /* Blogger comments */
@@ -1022,12 +1023,109 @@
         <a class='brand-link' href='https://sia-infinity.com/' rel='noopener noreferrer' target='_blank'><strong>SIA-Infinity&#8482;</strong> &#8599;</a>
       </div>
       <div class='sia-community-row'>
-        <a class='sia-community-link' href='https://sia-infinity.blogspot.com/' rel='nofollow noopener noreferrer' target='_blank'>Explore the SIA Blogger Community</a>
+        <a class='sia-community-link' href='https://sia-infinity.blogspot.com/' id='sia-community-link' referrerpolicy='no-referrer' rel='nofollow noopener noreferrer' target='_blank'>Explore the SIA Blogger Community<span aria-live='polite' class='sia-community-count' id='sia-community-count'></span></a>
         <span aria-hidden='true' class='sia-community-separator'>&#8226;</span>
         <a href='https://github.com/dilipnachna/SIA-Infinity-AI-Blogger-Template' rel='noopener noreferrer' target='_blank'>GitHub</a>
       </div>
     </div>
   </footer>
+
+  <script id='sia-community-runtime'>
+  //<![CDATA[
+  (function() {
+    var link = document.getElementById('sia-community-link');
+    var countNode = document.getElementById('sia-community-count');
+    if (!link || !countNode) return;
+
+    var rawBase = 'https://raw.githubusercontent.com/dilipnachna/SIA-Infinity-AI-Blogger-Template/main/public';
+    var manifestUrl = rawBase + '/sia-edge.json';
+    var rawRegistryUrl = rawBase + '/community/sia-community.json';
+    var cacheKey = 'sia-community-registry-v0.1';
+    var cacheTtl = 6 * 60 * 60 * 1000;
+
+    function applyCommunity(data) {
+      if (!data || typeof data !== 'object') return;
+      var count = Number(data.count || 0);
+      if (count > 0) {
+        countNode.textContent = ' · ' + count + ' verified blog' + (count === 1 ? '' : 's');
+      }
+      if (data.href) link.href = data.href;
+    }
+
+    function readCache() {
+      try {
+        var cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+        if (!cached || !cached.savedAt || Date.now() - cached.savedAt > cacheTtl) return null;
+        return cached;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function writeCache(data) {
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(data));
+      } catch (e) {}
+    }
+
+    async function fetchJson(url) {
+      var response = await fetch(url, {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'omit',
+        cache: 'no-cache',
+        referrerPolicy: 'no-referrer'
+      });
+      if (!response.ok) throw new Error('community-http-' + response.status);
+      return response.json();
+    }
+
+    async function loadCommunity() {
+      var cached = readCache();
+      if (cached) {
+        applyCommunity(cached);
+        return;
+      }
+
+      var edgeBase = '';
+      try {
+        var manifest = await fetchJson(manifestUrl);
+        if (manifest && manifest.cloudflare_base_url) {
+          edgeBase = String(manifest.cloudflare_base_url).replace(/\/$/, '');
+        }
+      } catch (e) {}
+
+      var registry = null;
+      var href = '';
+      if (edgeBase) {
+        try {
+          registry = await fetchJson(edgeBase + '/community/sia-community.json');
+          href = edgeBase + '/community/index.html';
+        } catch (e) {}
+      }
+
+      if (!registry) {
+        try {
+          registry = await fetchJson(rawRegistryUrl);
+        } catch (e) {
+          return;
+        }
+      }
+
+      var count = Number(registry && registry.verified_count || 0);
+      var data = { savedAt: Date.now(), count: count, href: href };
+      applyCommunity(data);
+      writeCache(data);
+    }
+
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(function() { loadCommunity(); }, { timeout: 1800 });
+    } else {
+      window.setTimeout(loadCommunity, 900);
+    }
+  })();
+  //]]>
+  </script>
 
   <b:if cond='data:view.isPost'>
     <script>
@@ -1186,6 +1284,7 @@
     //<![CDATA[
 /* SIA-Infinity Hybrid Graph Adapter v0.1
  * ----------------------------------------
+ * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
  * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
  * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
  * Related engine: SIA Fibonacci-KNN v0.1 (symbolic, deterministic).
