@@ -56,7 +56,7 @@ NEW_SHARE = """                  <div class='post-share-buttons'>
 
 COMMUNITY_MARKER = "class='sia-community-row'"
 COMMUNITY_BLOCK = """      <div class='sia-community-row'>
-        <a class='sia-community-link' href='https://sia-infinity.blogspot.com/' rel='noopener noreferrer' target='_blank'>Explore the SIA Blogger Community</a>
+        <a class='sia-community-link' href='https://sia-infinity.blogspot.com/' rel='nofollow noopener noreferrer' target='_blank'>Explore the SIA Blogger Community</a>
         <span aria-hidden='true' class='sia-community-separator'>&#8226;</span>
         <a href='https://github.com/dilipnachna/SIA-Infinity-AI-Blogger-Template' rel='noopener noreferrer' target='_blank'>GitHub</a>
       </div>
@@ -107,6 +107,11 @@ def patch_theme(text: str) -> str:
             "      </div>\n" + COMMUNITY_BLOCK + "    </div>\n  </footer>",
             1,
         )
+
+    text = text.replace(
+        "<a class='sia-community-link' href='https://sia-infinity.blogspot.com/' rel='noopener noreferrer' target='_blank'>",
+        "<a class='sia-community-link' href='https://sia-infinity.blogspot.com/' rel='nofollow noopener noreferrer' target='_blank'>",
+    )
 
     if NATIVE_MARKER not in text:
         js_anchor = "      let postBody = document.getElementById(\"post-body-content\");\n"
