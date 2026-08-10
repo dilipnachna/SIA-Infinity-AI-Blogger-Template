@@ -11,22 +11,23 @@ on:
       - "assets/**"
       - "scripts/**"
       - "sia.config.json"
+      - "sia.blogs.json"
+      - "wrangler.jsonc"
       - ".github/workflows/sia-cron.yml"
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
-  group: "sia-pages"
+  group: "sia-intelligence-${{ github.repository }}"
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      pages_enabled: ${{ steps.pages_check.outputs.enabled }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
     steps:
       - name: Checkout repository
@@ -37,13 +38,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Normalize v0.1 hybrid graph runtime
+      - name: Normalize v0.1 hybrid runtime for this fork
         run: |
           python scripts/activate_hybrid_graph.py
 
-      - name: Generate SIA graph
+      - name: Generate registered Blogger graphs
         run: |
-          python generator/generate_graph.py --config sia.config.json
+          python scripts/generate_all_graphs.py --registry sia.blogs.json --base-config sia.config.json
 
       - name: Publish adapter mirror
         run: |
@@ -52,18 +53,33 @@ jobs:
 
       - name: Validate v0.1 outputs
         run: |
-          python -m json.tool public/graphs/dilipnachna.blogspot.com/sia-graph.json > /dev/null
-          python -m py_compile generator/generate_graph.py
+          python -m py_compile generator/generate_graph.py scripts/generate_all_graphs.py scripts/update_edge_manifest.py
           python - <<'PY'
+          import html
           import json
+          from pathlib import Path
+          import re
           import xml.etree.ElementTree as ET
-          graph = json.load(open('public/graphs/dilipnachna.blogspot.com/sia-graph.json', encoding='utf-8'))
-          assert graph['sia']['format'] == 'sia-symbolic-graph'
-          ET.parse('theme/SIA-Infinity-AI-Blogger-Template-v0.1.xml')
-          print('Graph and Blogger XML validation OK')
+
+          graphs = sorted(Path('public/graphs').glob('*/sia-graph.json'))
+          if not graphs:
+              raise SystemExit('No SIA graphs were generated')
+
+          for path in graphs:
+              graph = json.loads(path.read_text(encoding='utf-8'))
+              assert graph['sia']['format'] == 'sia-symbolic-graph'
+              assert isinstance(graph.get('posts'), dict)
+              print('Validated', path)
+
+          theme_path = Path('theme/SIA-Infinity-AI-Blogger-Template-v0.1.xml')
+          theme = theme_path.read_text(encoding='utf-8')
+          ET.parse(theme_path)
+          if re.search(r'[\u0900-\u097F]', html.unescape(theme)):
+              raise SystemExit('Universal Blogger XML contains Devanagari source text')
+          print('Blogger XML validation OK')
           PY
 
-      - name: Commit current graph and normalized v0.1 source
+      - name: Commit graph and normalized source
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -72,52 +88,50 @@ jobs:
             generator/generate_graph.py \
             assets/sia-graph-adapter-v0.1.js \
             public/sia-graph-adapter-v0.1.js \
-            public/graphs/dilipnachna.blogspot.com/sia-graph.json
+            public/graphs
           if git diff --cached --quiet; then
             echo "Graph and source are already current"
           else
-            git commit -m "Refresh SIA v0.1 hybrid intelligence graph"
+            git commit -m "Refresh SIA v0.1 intelligence graphs"
             git push
           fi
 
-      - name: Detect optional GitHub Pages
-        id: pages_check
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Detect Cloudflare credentials
+        id: cloudflare_check
         shell: bash
         run: |
-          code=$(curl -sS -o /tmp/pages.json -w "%{http_code}" \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages")
-          if [ "$code" = "200" ]; then
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
-            echo "GitHub Pages is enabled; publishing mirror."
+            echo "Cloudflare credentials detected."
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "GitHub Pages is not enabled; Raw GitHub graph remains active."
+            echo "Cloudflare credentials are not configured; Raw GitHub remains the precomputed source."
           fi
 
-      - name: Configure GitHub Pages
-        if: steps.pages_check.outputs.enabled == 'true'
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
-        if: steps.pages_check.outputs.enabled == 'true'
-        uses: actions/upload-pages-artifact@v4
+      - name: Deploy static intelligence to Cloudflare
+        if: steps.cloudflare_check.outputs.enabled == 'true'
+        id: cloudflare_deploy
+        uses: cloudflare/wrangler-action@v3
         with:
-          path: public
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4"
+          command: deploy --config wrangler.jsonc
 
-  deploy:
-    if: needs.build.outputs.pages_enabled == 'true'
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
+      - name: Record Cloudflare edge endpoint
+        if: steps.cloudflare_check.outputs.enabled == 'true'
+        env:
+          DEPLOYMENT_URL: ${{ steps.cloudflare_deploy.outputs.deployment-url }}
+        run: |
+          python scripts/update_edge_manifest.py "$DEPLOYMENT_URL"
 
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Commit Cloudflare edge manifest
+        if: steps.cloudflare_check.outputs.enabled == 'true'
+        run: |
+          git add public/sia-edge.json
+          if git diff --cached --quiet; then
+            echo "Cloudflare edge manifest is already current"
+          else
+            git commit -m "Update SIA v0.1 Cloudflare edge endpoint"
+            git push
+          fi
