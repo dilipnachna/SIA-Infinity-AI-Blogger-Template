@@ -12,7 +12,8 @@ Owners may place a Blogger AdSense gadget or an HTML/JavaScript gadget in a
 zone. Empty zones do not render an Advertisement placeholder. Auto Ads remain
 independent of these manual zones.
 
-The proven Blog1 post loop is not modified.
+All three zones are outer layout sections. The proven Blog1 post loop is not
+modified or reconstructed.
 """
 from pathlib import Path
 import html
