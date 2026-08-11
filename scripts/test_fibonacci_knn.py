@@ -18,6 +18,7 @@ precompute_related = module.precompute_related
 fibonacci_floor = module.fibonacci_floor
 adaptive_fibonacci_k = module.adaptive_fibonacci_k
 golden_rank_weights = module.golden_rank_weights
+relation_types_from_reasons = module.relation_types_from_reasons
 
 
 def post(pid, title, labels, entities=None, silo=None, content_types=None, facets=None):
@@ -95,6 +96,14 @@ assert "shared_entity" in strong_reasons
 assert "same_silo" in strong_reasons
 assert "semantic_similarity" in strong_reasons
 
+semantic_types = relation_types_from_reasons(strong_reasons)
+assert "related" in semantic_types
+assert "same_entity" in semantic_types
+assert "same_silo" in semantic_types
+assert "supporting" not in semantic_types
+assert "source_reference" not in semantic_types
+assert "contrasting" not in semantic_types
+
 ranked = precompute_related(
     [base, strong, label_only, unrelated],
     min_score=0.01,
@@ -112,13 +121,27 @@ assert abs(
 assert "adaptive_fibonacci_k" in base_neighbors[0]["reasons"]
 assert "golden_ratio_rank" in base_neighbors[0]["reasons"]
 
+# Evidence-aware invariant: semantic recall is useful for navigation/retrieval,
+# but it must never manufacture factual support.
+assert base_neighbors[0]["evidence_status"] == "semantic_only"
+assert base_neighbors[0]["supports_claim"] is False
+assert "related" in base_neighbors[0]["relation_types"]
+assert "same_entity" in base_neighbors[0]["relation_types"]
+assert "same_silo" in base_neighbors[0]["relation_types"]
+assert not {
+    "supporting",
+    "source_reference",
+    "contrasting",
+}.intersection(base_neighbors[0]["relation_types"])
+
 print(
-    "Adaptive Fibonacci-KNN self-test OK:",
+    "Adaptive Fibonacci-KNN + evidence-aware relation self-test OK:",
     {
         "strong": strong_score,
         "label_only": label_score,
         "unrelated": unrelated_score,
         "k100": adaptive_fibonacci_k(100),
         "k1000": adaptive_fibonacci_k(1000),
+        "evidence_status": base_neighbors[0]["evidence_status"],
     },
 )
