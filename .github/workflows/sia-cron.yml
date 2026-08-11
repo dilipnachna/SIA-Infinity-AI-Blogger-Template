@@ -70,6 +70,10 @@ jobs:
         run: |
           python scripts/generate_all_graphs.py --registry sia.blogs.json --base-config sia.config.json
 
+      - name: Validate primary Blogger QA target
+        run: |
+          python scripts/test_primary_qa_blog.py
+
       - name: Publish adapter mirror
         run: |
           mkdir -p public
@@ -83,6 +87,7 @@ jobs:
             scripts/update_edge_manifest.py \
             scripts/activate_fibonacci_knn.py \
             scripts/test_fibonacci_knn.py \
+            scripts/test_primary_qa_blog.py \
             scripts/activate_social_community.py \
             scripts/activate_adaptive_system.py \
             scripts/activate_adaptive_system_v2.py \
