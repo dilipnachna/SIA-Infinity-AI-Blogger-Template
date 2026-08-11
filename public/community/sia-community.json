@@ -2,15 +2,15 @@
   "sia": {
     "format": "sia-blogger-community-registry",
     "version": "0.1",
-    "generated_at": "2026-08-11T09:41:18+00:00",
+    "generated_at": "2026-08-11T09:42:16+00:00",
     "root_repository": "dilipnachna/SIA-Infinity-AI-Blogger-Template",
     "mode": "opt-in-repository-bound-blogspot-verification",
     "verification_grace_hours": 72,
     "privacy": "No visitor telemetry. Membership is explicit in public sia.blogs.json and verified against live repository-bound SIA markers."
   },
   "verified_count": 2,
-  "current_verified_count": 0,
-  "grace_verified_count": 2,
+  "current_verified_count": 2,
+  "grace_verified_count": 0,
   "candidate_count": 3,
   "repository_count": 1,
   "source_registry_count": 1,
@@ -23,10 +23,10 @@
       "version": "0.1",
       "source_repository": "dilipnachna/SIA-Infinity-AI-Blogger-Template",
       "status": "verified",
-      "verification_state": "grace",
-      "consecutive_failures": 1,
+      "verification_state": "current",
+      "consecutive_failures": 0,
       "first_seen": "2026-08-11T02:50:01+00:00",
-      "last_verified_at": "2026-08-11T09:40:16+00:00"
+      "last_verified_at": "2026-08-11T09:42:16+00:00"
     },
     {
       "hostname": "dilipnachna.blogspot.com",
@@ -36,10 +36,10 @@
       "version": "0.1",
       "source_repository": "dilipnachna/SIA-Infinity-AI-Blogger-Template",
       "status": "verified",
-      "verification_state": "grace",
-      "consecutive_failures": 1,
+      "verification_state": "current",
+      "consecutive_failures": 0,
       "first_seen": "2026-08-11T02:50:01+00:00",
-      "last_verified_at": "2026-08-11T09:40:16+00:00"
+      "last_verified_at": "2026-08-11T09:42:16+00:00"
     }
   ]
 }
