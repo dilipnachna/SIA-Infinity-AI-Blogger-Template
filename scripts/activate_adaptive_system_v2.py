@@ -7,6 +7,9 @@ BreadcrumbList only after the complete existing BlogPosting script/condition.
 The post-detail featured image is intentionally different from feed thumbnails:
 feed cards may crop to a presentation ratio, while the main article image keeps
 the original image composition and only resizes responsively.
+
+Publisher-neutral Blogger Layout ad zones are also activated without modifying
+the proven Blog1 post loop or embedding any AdSense publisher ID.
 """
 from pathlib import Path
 import html
@@ -14,6 +17,7 @@ import re
 import xml.etree.ElementTree as ET
 
 import activate_adaptive_system as base
+import activate_adsense_zones as ads
 
 THEME = Path("theme/SIA-Infinity-AI-Blogger-Template-v0.1.xml")
 
@@ -126,6 +130,9 @@ def main() -> None:
     text = base.patch_sharing(text)
     text = base.patch_footer_and_ads(text)
     text = patch_breadcrumb_schema(text)
+    text = ads.patch_css(text)
+    text = ads.patch_slots(text)
+    ads.validate(text)
 
     if re.search(r"[\u0900-\u097F]", html.unescape(text)):
         raise RuntimeError("Universal Blogger XML contains Devanagari source text")
@@ -150,6 +157,10 @@ def main() -> None:
         "<h1 class='post-title'><data:post.title/></h1>",
         "id='footer-links'",
         "max-snippet:-1",
+        ads.MARKER,
+        "id='sia-ad-top'",
+        "id='sia-ad-bottom'",
+        "id='sia-ad-feed'",
     ]
     missing = [marker for marker in required if marker not in text]
     if missing:
@@ -162,9 +173,12 @@ def main() -> None:
         raise RuntimeError("Hardcoded footer legal pages are still present")
     if "                  Advertisement\n" in text:
         raise RuntimeError("Empty advertisement placeholder is still present")
+    if "ca-pub-" in text.lower():
+        raise RuntimeError("Universal Blogger XML must remain publisher-neutral")
 
     print("SIA v0.1 adaptive Blogger system hardening activated for " + base.REPOSITORY)
     print("SIA v0.1 article featured image mode: responsive no-crop")
+    print("SIA v0.1 ad zones: publisher-neutral top, bottom and feed layout sections")
 
 
 if __name__ == "__main__":
