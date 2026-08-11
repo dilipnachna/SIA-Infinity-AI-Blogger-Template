@@ -140,7 +140,10 @@ def main() -> None:
     text = base.patch_heading_architecture(text)
     text = base.patch_featured_image(text)
     text = patch_featured_image_no_crop(text)
-    text = base.patch_sharing(text)
+    if "<div class='post-share-buttons'>" in text:
+        text = base.patch_sharing(text)
+    elif base.SHARE_JS_MARKER not in text:
+        raise RuntimeError("Editorial share rail requires the encoded social action runtime")
     text = base.patch_footer_and_ads(text)
     text = patch_breadcrumb_schema(text)
     text = editorial.patch_css(text)
