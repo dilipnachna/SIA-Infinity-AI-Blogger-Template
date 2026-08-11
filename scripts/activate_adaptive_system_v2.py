@@ -11,9 +11,10 @@ the original image composition and only resizes responsively.
 Publisher-neutral Blogger Layout ad zones are also activated without modifying
 the proven Blog1 post loop or embedding any AdSense publisher ID.
 
-Single posts use the SIA editorial hero header: Primary Silo kicker, large H1,
-dynamic author byline, date/label pills and compact share actions. No fake
-author verification state is rendered.
+Single posts use the SIA editorial hero header and editorial footer treatment.
+The footer includes dynamic labels, an optional truth-safe disclosure, a large
+author card and full-width share actions. No fake author verification or AI
+assistance claim is rendered by default.
 """
 from pathlib import Path
 import html
@@ -23,6 +24,7 @@ import xml.etree.ElementTree as ET
 import activate_adaptive_system as base
 import activate_adsense_zones as ads
 import activate_single_post_header as editorial
+import activate_single_post_bottom as editorial_bottom
 
 THEME = Path("theme/SIA-Infinity-AI-Blogger-Template-v0.1.xml")
 
@@ -138,6 +140,10 @@ def main() -> None:
     text = editorial.patch_css(text)
     text = editorial.patch_markup(text)
     editorial.validate(text)
+    text = editorial_bottom.patch_css(text)
+    text = editorial_bottom.patch_markup(text)
+    text = editorial_bottom.patch_script(text)
+    editorial_bottom.validate(text)
     text = ads.patch_css(text)
     text = ads.patch_slots(text)
     ads.validate(text)
@@ -170,6 +176,12 @@ def main() -> None:
         "class='single-post-hero'",
         "class='single-post-byline'",
         "class='single-post-share-row'",
+        editorial_bottom.MARKER,
+        "class='single-post-bottom'",
+        "id='sia-editorial-disclosure'",
+        "class='single-post-author-card",
+        "class='single-post-bottom-share'",
+        editorial_bottom.DISCLOSURE_JS_MARKER,
         ads.MARKER,
         "id='sia-ad-top'",
         "id='sia-ad-bottom'",
@@ -192,6 +204,7 @@ def main() -> None:
     print("SIA v0.1 adaptive Blogger system hardening activated for " + base.REPOSITORY)
     print("SIA v0.1 article featured image mode: responsive no-crop")
     print("SIA v0.1 editorial single-post header: primary silo, byline, labels and compact sharing")
+    print("SIA v0.1 editorial single-post bottom: labels, optional disclosure, author card and share rail")
     print("SIA v0.1 ad zones: publisher-neutral top, bottom and feed layout sections")
 
 
