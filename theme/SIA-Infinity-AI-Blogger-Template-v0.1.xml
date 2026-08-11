@@ -127,6 +127,17 @@
     .sia-community-count { margin-left: 4px; color: #166534; font-weight: 800; }
     .sia-community-separator { color: #94a3b8; padding: 0 6px; }
 
+
+    /* SIA Publisher-Neutral Ad Zones v0.1 */
+    .sia-ad-zone { margin: 28px 0; min-height: 0; text-align: center; overflow: hidden; }
+    .sia-ad-zone:empty { display: none; margin: 0; }
+    .sia-ad-zone .widget { margin: 0; }
+    .sia-ad-zone .widget-content { max-width: 100%; overflow: hidden; }
+    .sia-ad-zone ins.adsbygoogle { max-width: 100%; }
+    .sia-ad-top { margin-top: 0; margin-bottom: 30px; }
+    .sia-ad-bottom { margin-top: 30px; margin-bottom: 30px; }
+    .sia-ad-feed { margin-top: 24px; margin-bottom: 32px; }
+
     /* Blogger comments */
     .comments { margin: 0 0 40px; padding: 28px 30px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.04); }
     .comments .title { margin: 0 0 22px; color: #0f172a; font-size: 22px; font-weight: 800; }
@@ -353,6 +364,10 @@
   </header>
 
   <div expr:class='data:view.isSingleItem ? &quot;container single-container&quot; : &quot;container feed-container&quot;'>
+    <!-- SIA Publisher-Neutral Ad Zones v0.1 -->
+    <b:if cond='data:view.isSingleItem'>
+      <b:section class='sia-ad-zone sia-ad-top' id='sia-ad-top' maxwidgets='1' showaddelement='yes'></b:section>
+    </b:if>
     <b:section id='main-content'>
       <b:widget id='Blog1' locked='true' title='Blog Posts' type='Blog' version='2' visible='true'>
         <b:widget-settings>
@@ -1026,6 +1041,14 @@
 </b:includable>
       </b:widget>
     </b:section>
+
+    <b:if cond='data:view.isSingleItem'>
+      <b:section class='sia-ad-zone sia-ad-bottom' id='sia-ad-bottom' maxwidgets='1' showaddelement='yes'></b:section>
+    </b:if>
+
+    <b:if cond='data:view.isMultipleItems'>
+      <b:section class='sia-ad-zone sia-ad-feed' id='sia-ad-feed' maxwidgets='1' showaddelement='yes'></b:section>
+    </b:if>
 
     <div expr:class='data:view.isPost ? &quot;widget-grid&quot; : &quot;widget-grid popular-only-grid&quot;'>
       <b:if cond='data:view.isPost'>
