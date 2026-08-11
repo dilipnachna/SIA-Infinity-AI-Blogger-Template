@@ -2,7 +2,7 @@
   "version": "0.1",
   "blogs": [
     {
-      "url": "https://dilipnachna.blogspot.com",
+      "url": "https://sia-infinity.blogspot.com",
       "enabled": true,
       "community": true
     },
@@ -11,8 +11,13 @@
       "enabled": true,
       "community": true
     },
+     {
+      "url": "https://netsurfaarogyam.blogspot.com/",
+      "enabled": true,
+      "community": true
+    },
     {
-      "url": "https://sia-infinity.blogspot.com",
+      "url": "https://dilipnachna.blogspot.com",
       "enabled": true,
       "community": true
     }
