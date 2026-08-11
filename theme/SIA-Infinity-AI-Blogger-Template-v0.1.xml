@@ -7,6 +7,8 @@
   <meta content='width=device-width, initial-scale=1' name='viewport'/>
   <meta content='SIA-Infinity-AI-Blogger-Template-v0.1' name='sia-template'/>
   <meta content='0.1' name='sia-template-version'/>
+  <!-- SIA CWV Performance Budget v0.1 -->
+  <meta content='p75-lcp-2.5s-inp-200ms-cls-0.1' name='sia-cwv-budget'/>
   <!-- SIA Bot Integrity Contract v0.1 -->
   <meta content='same-content-semantic-parity-v0.1' name='sia-bot-integrity'/>
   <meta content='dilipnachna/SIA-Infinity-AI-Blogger-Template' name='sia-community-repository'/>
@@ -546,6 +548,92 @@
     }
 
     @media (max-width: 700px) { .widget-grid { grid-template-columns: 1fr; } .author-box { flex-direction: column; text-align: center; } .post-content { padding: 20px; } .feed-card-layout { grid-template-columns: 1fr; gap: 16px; } .feed-thumbnail-box { aspect-ratio: 16/9; } .feed-card-copy .post-title { font-size: 21px; } .post-share-box { padding: 16px; } .post-share-buttons { display: grid; grid-template-columns: 1fr 1fr; } .share-btn { width: 100%; } .comments { padding: 20px; } }
+
+
+    /* SIA CWV CLS Guards v0.1 */
+    .single-post-author-avatar-slot {
+      width: 50px;
+      height: 50px;
+      flex: 0 0 50px;
+      display: block;
+      overflow: hidden;
+      border: 1px solid #94a3b8;
+      border-radius: 50%;
+      background: #f1f5f9;
+      box-sizing: border-box;
+    }
+    .single-post-author-avatar-slot .single-post-author-avatar {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      border: 0;
+      border-radius: 0;
+      display: block;
+      object-fit: cover;
+      object-position: center;
+    }
+    .single-post-author-card,
+    .single-post-author-card.no-avatar {
+      grid-template-columns: 150px minmax(0, 1fr);
+    }
+    .single-post-author-card-avatar-slot {
+      width: 124px;
+      height: 124px;
+      display: block;
+      justify-self: center;
+      overflow: hidden;
+      border: 1px solid #1e3a8a;
+      border-radius: 50%;
+      background: #f1f5f9;
+      box-sizing: border-box;
+    }
+    .single-post-author-card-avatar-slot .single-post-author-card-avatar {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      border: 0;
+      border-radius: 0;
+      display: block;
+      object-fit: cover;
+      object-position: center;
+    }
+    .sia-related-card-media {
+      contain: layout paint;
+    }
+    .sia-related-card-image {
+      aspect-ratio: 16 / 9;
+    }
+    .sia-related-section {
+      content-visibility: auto;
+      contain-intrinsic-size: auto 420px;
+    }
+    @supports selector(.sia-ad-zone:has(.widget)) {
+      .sia-ad-zone:has(.widget) {
+        min-height: 250px;
+      }
+      .sia-ad-top:has(.widget) {
+        min-height: 100px;
+      }
+    }
+    @media (max-width: 700px) {
+      .single-post-author-avatar-slot {
+        width: 46px;
+        height: 46px;
+        flex-basis: 46px;
+      }
+      .single-post-author-card,
+      .single-post-author-card.no-avatar {
+        grid-template-columns: 88px minmax(0, 1fr);
+      }
+      .single-post-author-card-avatar-slot {
+        width: 78px;
+        height: 78px;
+      }
+      .sia-related-section {
+        contain-intrinsic-size: auto 720px;
+      }
+    }
+
   ]]></b:skin>
 </head>
 <body>
@@ -920,14 +1008,18 @@
                   <h1 class='post-title'><data:post.title/></h1>
 
                   <div class='single-post-byline'>
-                    <b:if cond='data:post.authorPhoto.url'>
-                      <img class='single-post-author-avatar'
-                           decoding='async'
-                           expr:alt='data:post.author.name'
-                           expr:src='data:post.authorPhoto.url'
-                           height='50'
-                           width='50'/>
-                    </b:if>
+                    <span aria-hidden='true' class='single-post-author-avatar-slot'>
+                      <b:if cond='data:post.authorPhoto.url'>
+                        <img class='single-post-author-avatar'
+                             decoding='async'
+                             expr:alt='data:post.author.name'
+                             expr:src='data:post.authorPhoto.url'
+                             fetchpriority='low'
+                             height='50'
+                             loading='lazy'
+                             width='50'/>
+                      </b:if>
+                    </span>
                     <div class='single-post-byline-copy'>
                       <div class='single-post-author-line'>
                         By
@@ -1001,15 +1093,18 @@
                   </aside>
 
                   <div expr:class='data:post.authorPhoto.url ? &quot;single-post-author-card&quot; : &quot;single-post-author-card no-avatar&quot;' expr:data-sia-post-id='data:post.id'>
-                    <b:if cond='data:post.authorPhoto.url'>
-                      <img class='single-post-author-card-avatar'
-                           decoding='async'
-                           expr:alt='data:post.author.name'
-                           expr:src='data:post.authorPhoto.url'
-                           height='124'
-                           loading='lazy'
-                           width='124'/>
-                    </b:if>
+                    <span aria-hidden='true' class='single-post-author-card-avatar-slot'>
+                      <b:if cond='data:post.authorPhoto.url'>
+                        <img class='single-post-author-card-avatar'
+                             decoding='async'
+                             expr:alt='data:post.author.name'
+                             expr:src='data:post.authorPhoto.url'
+                             fetchpriority='low'
+                             height='124'
+                             loading='lazy'
+                             width='124'/>
+                      </b:if>
+                    </span>
                     <div class='single-post-author-card-copy'>
                       <h3 class='single-post-author-card-name'>
                         <b:if cond='data:post.authorProfileUrl'>
@@ -2368,22 +2463,25 @@
       function addHeaderAvatar(image, name) {
         var byline = document.querySelector('.single-post-byline');
         if (!byline || byline.querySelector('.single-post-author-avatar')) return;
-        var copy = byline.querySelector('.single-post-byline-copy');
+        var slot = byline.querySelector('.single-post-author-avatar-slot');
+        if (!slot) return;
         var img = document.createElement('img');
         img.className = 'single-post-author-avatar';
         img.src = image;
         img.alt = name || 'Author';
         img.width = 50;
         img.height = 50;
+        img.loading = 'lazy';
         img.decoding = 'async';
-        if (copy) byline.insertBefore(img, copy);
-        else byline.insertBefore(img, byline.firstChild);
+        img.fetchPriority = 'low';
+        slot.appendChild(img);
       }
 
       function addCardAvatar(image, name) {
         var card = document.querySelector('.single-post-author-card');
         if (!card || card.querySelector('.single-post-author-card-avatar')) return;
-        var copy = card.querySelector('.single-post-author-card-copy');
+        var slot = card.querySelector('.single-post-author-card-avatar-slot');
+        if (!slot) return;
         var img = document.createElement('img');
         img.className = 'single-post-author-card-avatar';
         img.src = image;
@@ -2392,9 +2490,8 @@
         img.height = 124;
         img.loading = 'lazy';
         img.decoding = 'async';
-        card.classList.remove('no-avatar');
-        if (copy) card.insertBefore(img, copy);
-        else card.insertBefore(img, card.firstChild);
+        img.fetchPriority = 'low';
+        slot.appendChild(img);
       }
 
       function linkAuthor(profileUrl) {
@@ -2450,10 +2547,18 @@
         });
       }
 
+      function scheduleHydrate() {
+        if ('requestIdleCallback' in window) {
+          window.requestIdleCallback(hydrate, { timeout: 1200 });
+        } else {
+          window.setTimeout(hydrate, 0);
+        }
+      }
+
       if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', hydrate, { once: true });
+        document.addEventListener('DOMContentLoaded', scheduleHydrate, { once: true });
       } else {
-        hydrate();
+        scheduleHydrate();
       }
     })(window, document);
     //]]>
