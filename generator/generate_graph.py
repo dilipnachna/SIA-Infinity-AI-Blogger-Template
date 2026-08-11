@@ -56,48 +56,6 @@ FIBONACCI_KNN_TOTAL = SEMANTIC_SIMILARITY_TOTAL
 PHI = (1.0 + math.sqrt(5.0)) / 2.0
 DEFAULT_RELATED_MAX_K = 55
 DEFAULT_RELATED_DISPLAY_LIMIT = 6
-PHI = (1.0 + math.sqrt(5.0)) / 2.0
-DEFAULT_RELATED_MAX_K = 55
-DEFAULT_RELATED_DISPLAY_LIMIT = 6
-PHI = (1.0 + math.sqrt(5.0)) / 2.0
-DEFAULT_RELATED_MAX_K = 55
-DEFAULT_RELATED_DISPLAY_LIMIT = 6
-PHI = (1.0 + math.sqrt(5.0)) / 2.0
-DEFAULT_RELATED_MAX_K = 55
-DEFAULT_RELATED_DISPLAY_LIMIT = 6
-PHI = (1.0 + math.sqrt(5.0)) / 2.0
-DEFAULT_RELATED_MAX_K = 55
-DEFAULT_RELATED_DISPLAY_LIMIT = 6
-PHI = (1.0 + math.sqrt(5.0)) / 2.0
-DEFAULT_RELATED_MAX_K = 55
-DEFAULT_RELATED_DISPLAY_LIMIT = 6
-PHI = (1.0 + math.sqrt(5.0)) / 2.0
-DEFAULT_RELATED_MAX_K = 55
-DEFAULT_RELATED_DISPLAY_LIMIT = 6
-PHI = (1.0 + math.sqrt(5.0)) / 2.0
-DEFAULT_RELATED_MAX_K = 55
-DEFAULT_RELATED_DISPLAY_LIMIT = 6
-PHI = (1.0 + math.sqrt(5.0)) / 2.0
-DEFAULT_RELATED_MAX_K = 55
-DEFAULT_RELATED_DISPLAY_LIMIT = 6
-PHI = (1.0 + math.sqrt(5.0)) / 2.0
-DEFAULT_RELATED_MAX_K = 55
-DEFAULT_RELATED_DISPLAY_LIMIT = 6
-PHI = (1.0 + math.sqrt(5.0)) / 2.0
-DEFAULT_RELATED_MAX_K = 55
-DEFAULT_RELATED_DISPLAY_LIMIT = 6
-PHI = (1.0 + math.sqrt(5.0)) / 2.0
-DEFAULT_RELATED_MAX_K = 55
-DEFAULT_RELATED_DISPLAY_LIMIT = 6
-PHI = (1.0 + math.sqrt(5.0)) / 2.0
-DEFAULT_RELATED_MAX_K = 55
-DEFAULT_RELATED_DISPLAY_LIMIT = 6
-PHI = (1.0 + math.sqrt(5.0)) / 2.0
-DEFAULT_RELATED_MAX_K = 55
-DEFAULT_RELATED_DISPLAY_LIMIT = 6
-PHI = (1.0 + math.sqrt(5.0)) / 2.0
-DEFAULT_RELATED_MAX_K = 55
-DEFAULT_RELATED_DISPLAY_LIMIT = 6
 
 CONTENT_TYPE_ALIASES = {
     "poems": {
@@ -537,6 +495,24 @@ def related_score(a: Post, b: Post):
     return round(max(0.0, min(100.0, score)), 3), reasons
 
 
+def relation_types_from_reasons(reasons: Sequence[str]) -> List[str]:
+    """Map similarity signals to non-evidentiary semantic relation classes."""
+    reason_set = set(reasons or [])
+    relation_types = ["related"]
+    mapping = (
+        ("shared_entity", "same_entity"),
+        ("same_silo", "same_silo"),
+        ("same_content_type", "same_content_type"),
+        ("shared_facet", "shared_facet"),
+        ("shared_label", "shared_label"),
+        ("title_pattern", "title_pattern"),
+    )
+    for reason, relation_type in mapping:
+        if reason in reason_set:
+            relation_types.append(relation_type)
+    return relation_types
+
+
 def precompute_related(posts, limit=None, min_score=10.0, max_k=DEFAULT_RELATED_MAX_K):
     """Build adaptive Fibonacci-KNN recall lists for every post.
 
@@ -574,6 +550,9 @@ def precompute_related(posts, limit=None, min_score=10.0, max_k=DEFAULT_RELATED_
                 "adaptive_fibonacci_k",
                 "golden_ratio_rank",
             ]
+            item["relation_types"] = relation_types_from_reasons(item["reasons"])
+            item["evidence_status"] = "semantic_only"
+            item["supports_claim"] = False
             # Relevance admission happens after recall. This preserves K(N)
             # while refusing very weak related links in the published graph.
             if item["similarity"] >= min_score:
@@ -721,6 +700,17 @@ def main():
                 "blog_url": blog_url,
                 "post_count": 0,
                 "mode": "precomputed-symbolic",
+                "relation_policy": {
+                    "principle": "similarity_is_not_evidence",
+                    "semantic_relations": [
+                        "related", "same_entity", "same_silo",
+                        "same_content_type", "shared_facet",
+                        "shared_label", "title_pattern"
+                    ],
+                    "explicit_evidence_only": [
+                        "supporting", "source_reference", "contrasting"
+                    ]
+                },
                 "related_engine": FIBONACCI_KNN_ENGINE,
                 "related_k": adaptive_fibonacci_k(0, related_max_k),
                 "related_max_k": related_max_k,
@@ -807,6 +797,17 @@ def main():
             "blog_url": blog_url,
             "post_count": len(posts),
             "mode": "precomputed-symbolic",
+            "relation_policy": {
+                "principle": "similarity_is_not_evidence",
+                "semantic_relations": [
+                    "related", "same_entity", "same_silo",
+                    "same_content_type", "shared_facet",
+                    "shared_label", "title_pattern"
+                ],
+                "explicit_evidence_only": [
+                    "supporting", "source_reference", "contrasting"
+                ]
+            },
             "related_engine": FIBONACCI_KNN_ENGINE,
             "related_k": adaptive_fibonacci_k(max(0, len(posts) - 1), related_max_k),
             "related_max_k": related_max_k,

@@ -121,6 +121,12 @@
       if (item.reasons && item.reasons.length) {
         a.setAttribute('data-sia-reasons', item.reasons.join(','));
       }
+      if (item.relation_types && item.relation_types.length) {
+        a.setAttribute('data-sia-relation-types', item.relation_types.join(','));
+      }
+      if (item.evidence_status) {
+        a.setAttribute('data-sia-evidence-status', item.evidence_status);
+      }
       li.appendChild(a);
       list.appendChild(li);
     });
@@ -284,6 +290,10 @@
         title: p.title || 'Untitled',
         url: p.url,
         score: ref.score,
+        similarity: ref.similarity !== undefined ? ref.similarity : ref.score,
+        relation_types: ref.relation_types || ['related'],
+        evidence_status: ref.evidence_status || 'semantic_only',
+        supports_claim: ref.supports_claim === true,
         reasons: ref.reasons || []
       });
     });
@@ -458,6 +468,15 @@
       item.rank_weight = Math.round(weights[index] * 100000000) / 100000000;
       item.recall_score = Math.round(item.similarity * weights[index] * 1000000) / 1000000;
       item.reasons = item.reasons.concat(['adaptive_fibonacci_k', 'golden_ratio_rank']);
+      item.relation_types = ['related'];
+      if (item.reasons.indexOf('shared_entity') !== -1) item.relation_types.push('same_entity');
+      if (item.reasons.indexOf('same_silo') !== -1) item.relation_types.push('same_silo');
+      if (item.reasons.indexOf('same_content_type') !== -1) item.relation_types.push('same_content_type');
+      if (item.reasons.indexOf('shared_facet') !== -1) item.relation_types.push('shared_facet');
+      if (item.reasons.indexOf('shared_label') !== -1) item.relation_types.push('shared_label');
+      if (item.reasons.indexOf('title_pattern') !== -1) item.relation_types.push('title_pattern');
+      item.evidence_status = 'semantic_only';
+      item.supports_claim = false;
     });
 
     return nearest.filter(function (item) {
