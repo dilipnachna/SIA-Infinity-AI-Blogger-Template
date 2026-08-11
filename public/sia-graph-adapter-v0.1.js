@@ -582,6 +582,63 @@
     return items;
   }
 
+
+  /* SIA Related Post Image Recovery v0.1 */
+  async function recoverRelatedImageFromHtml(item) {
+    if (!item || relatedImageUrl(item.image) || !item.url) return false;
+
+    try {
+      var target = new URL(item.url, window.location.href);
+      if (target.origin !== window.location.origin) return false;
+
+      var response = await fetch(target.href, {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'force-cache'
+      });
+      if (!response.ok) return false;
+
+      var source = await response.text();
+      var parsed = new DOMParser().parseFromString(source, 'text/html');
+      var metaImage = parsed.querySelector('meta[property="og:image"]');
+      var image = metaImage && metaImage.content ? metaImage.content : '';
+
+      if (!image) {
+        var node = parsed.querySelector('#sia-featured-image, .post-body img, article img');
+        if (node) {
+          image = node.getAttribute('src') || node.getAttribute('data-src') || '';
+        }
+      }
+
+      image = relatedImageUrl(image);
+      if (!image) return false;
+      item.image = image;
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function scheduleRelatedImageRecovery(items, mode) {
+    var targets = (items || []).slice(0, cfg.maxRelated).filter(function(item) {
+      return item && item.url && !relatedImageUrl(item.image);
+    });
+    if (!targets.length) return;
+
+    var recover = function() {
+      Promise.all(targets.map(recoverRelatedImageFromHtml)).then(function(results) {
+        var changed = results.some(function(value) { return value === true; });
+        if (changed) renderRelated(items, mode);
+      }).catch(function() {});
+    };
+
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(recover, { timeout: 1800 });
+    } else {
+      window.setTimeout(recover, 1200);
+    }
+  }
+
   async function boot() {
     if (!document.getElementById(cfg.relatedTarget)) return;
 
@@ -593,6 +650,7 @@
       var mode = loaded.source === 'edge' ? 'precomputed-edge' : 'precomputed-github';
 
       renderRelated(items, mode);
+      scheduleRelatedImageRecovery(items, mode);
       setStatus(
         loaded.source === 'edge' ? 'SIA Cloudflare Edge Intelligence' : 'SIA GitHub Intelligence',
         mode
@@ -616,6 +674,7 @@
       setStatus('Blogger fallback intelligence...', 'fallback-loading');
       var fallback = await fallbackRelated();
       renderRelated(fallback, 'fallback');
+      scheduleRelatedImageRecovery(fallback, 'fallback');
       setStatus('SIA Blogger Fallback Mode', 'fallback');
 
       window.dispatchEvent(new CustomEvent('sia:hybrid-ready', {
