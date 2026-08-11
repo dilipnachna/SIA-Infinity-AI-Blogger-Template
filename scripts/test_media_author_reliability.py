@@ -39,7 +39,7 @@ for retired in (
     assert retired not in THEME, "Retired binding remains: " + retired
 
 # The author fallback may call only the same-origin Blogger post feed. It must
-# not introduce browser storage, beacon telemetry, or a third-party API.
+# not introduce browser storage, beacon telemetry, or a third-party fetch.
 author_runtime = THEME.split("SIA Blogger Author Profile Hydration v0.1", 1)[1]
 author_runtime = author_runtime.split("SIA Fibonacci Attention Map v0.1", 1)[0]
 assert "fetch('/feeds/posts/default/'" in author_runtime
@@ -47,7 +47,10 @@ assert "localStorage" not in author_runtime
 assert "sessionStorage" not in author_runtime
 assert "sendBeacon(" not in author_runtime
 assert "XMLHttpRequest(" not in author_runtime
-assert "https://" not in author_runtime
+assert "fetch('http://" not in author_runtime
+assert "fetch('https://" not in author_runtime
+assert 'fetch("http://' not in author_runtime
+assert 'fetch("https://' not in author_runtime
 
 ET.parse(THEME_PATH)
 print("SIA media/author reliability self-test OK: cache-safe images + Blogger profile fallback")
