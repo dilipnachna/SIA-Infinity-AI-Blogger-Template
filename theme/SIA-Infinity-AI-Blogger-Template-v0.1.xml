@@ -2152,6 +2152,7 @@
       '.sia-ad-zone',
       '.adsbygoogle',
       'iframe',
+      'a',
       'button',
       'input',
       'textarea',
@@ -2164,8 +2165,7 @@
       '.post-share-box',
       '.share-btn',
       '.native-share-btn',
-      '.copy-link-btn',
-      'a[download]'
+      '.copy-link-btn'
     ].join(',');
 
     var config = window.SIA_CONFIG || {};
