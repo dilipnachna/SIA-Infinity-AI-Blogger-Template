@@ -46,6 +46,7 @@ jobs:
           python scripts/activate_hybrid_graph.py
           python scripts/activate_social_community.py
           python scripts/activate_adaptive_system_v2.py
+          python scripts/activate_cwv_budget.py
 
       - name: Validate adaptive configuration
         run: |
@@ -85,6 +86,14 @@ jobs:
             scripts/activate_social_community.py \
             scripts/activate_adaptive_system.py \
             scripts/activate_adaptive_system_v2.py \
+            scripts/activate_attention_map.py \
+            scripts/test_attention_map.py \
+            scripts/activate_related_silo_grid.py \
+            scripts/test_related_silo_grid.py \
+            scripts/activate_media_author_reliability.py \
+            scripts/test_media_author_reliability.py \
+            scripts/activate_cwv_budget.py \
+            scripts/test_cwv_budget.py \
             scripts/build_community_registry.py \
             scripts/validate_configs.py
           python - <<'PY'
@@ -181,6 +190,14 @@ jobs:
               'fibonacci_knn_fallback',
               'adaptiveFibonacciK',
               'goldenRankWeights',
+              'SIA CWV Performance Budget v0.1',
+              "name='sia-cwv-budget'",
+              'p75-lcp-2.5s-inp-200ms-cls-0.1',
+              "class='single-post-author-avatar-slot'",
+              "class='single-post-author-card-avatar-slot'",
+              'requestIdleCallback',
+              '@supports selector(.sia-ad-zone:has(.widget))',
+              'contain-intrinsic-size: auto 420px',
           ]
           missing = [marker for marker in required_theme_markers if marker not in theme]
           if missing:
@@ -193,6 +210,8 @@ jobs:
               "href='/p/disclaimer.html'",
               'let parentLink = bodyImg.parentNode;',
               '                  Advertisement\n',
+              'byline.insertBefore(img, copy);',
+              'card.insertBefore(img, copy);',
           ]
           present = [marker for marker in forbidden if marker in theme]
           if present:
