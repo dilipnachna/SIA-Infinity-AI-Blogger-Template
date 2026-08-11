@@ -15,7 +15,6 @@ Rules:
 """
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from typing import Tuple
 
@@ -119,7 +118,7 @@ CSS = r'''
       margin-top: 9px;
       color: #1e293b;
       font-size: 18px;
-      font-weight: 850;
+      font-weight: 800;
       line-height: 1.28;
       overflow-wrap: anywhere;
     }
@@ -173,8 +172,18 @@ def patch_generator(text: str) -> str:
         text = text.replace(anchor, anchor + "    featured_image: str = \"\"\n", 1)
 
     if "def extract_featured_image(" not in text:
-        anchor = '''def parse_entry(entry: dict) -> dict:\n'''
-        helper = '''def extract_featured_image(entry: dict, body: str) -> str:\n    # Prefer the first body image so visual cards do not inherit a tiny/square\n    # media thumbnail crop. Fall back to Blogger media$thumbnail when needed.\n    match = re.search(r'''<img\\b[^>]*\\bsrc=[\"\\']([^\"\\']+)[\"\\']''', body or \"\", re.I)\n    if match:\n        return html.unescape(match.group(1)).strip()\n    thumbnail = entry.get(\"media$thumbnail\", {}) or {}\n    return html.unescape(thumbnail.get(\"url\", \"\") or \"\").strip()\n\n\n'''
+        anchor = "def parse_entry(entry: dict) -> dict:\n"
+        helper = """def extract_featured_image(entry: dict, body: str) -> str:
+    # Prefer the first body image so visual cards do not inherit a tiny/square
+    # media thumbnail crop. Fall back to Blogger media$thumbnail when needed.
+    match = re.search(r'<img\\b[^>]*\\bsrc=[\"\\\']([^\"\\\']+)[\"\\\']', body or \"\", re.I)
+    if match:
+        return html.unescape(match.group(1)).strip()
+    thumbnail = entry.get(\"media$thumbnail\", {}) or {}
+    return html.unescape(thumbnail.get(\"url\", \"\") or \"\").strip()
+
+
+"""
         if anchor not in text:
             raise RuntimeError("parse_entry anchor not found")
         text = text.replace(anchor, helper + anchor, 1)
