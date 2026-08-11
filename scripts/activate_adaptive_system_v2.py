@@ -25,6 +25,8 @@ it can only recommend an existing publisher-neutral ad zone.
 
 Related Silo results are rendered as responsive image cards while the existing
 Primary Silo and adaptive Fibonacci-KNN relevance decisions remain unchanged.
+Related-media cache invalidation/feed hydration and Blogger author-profile
+fallbacks keep presentation reliable without changing ranking logic.
 """
 from pathlib import Path
 import html
@@ -34,6 +36,7 @@ import xml.etree.ElementTree as ET
 import activate_adaptive_system as base
 import activate_adsense_zones as ads
 import activate_attention_map as attention
+import activate_media_author_reliability as reliability
 import activate_related_silo_grid as related_grid
 import activate_single_post_header as editorial
 import activate_single_post_bottom as editorial_bottom
@@ -142,9 +145,10 @@ def patch_featured_image_no_crop(text: str) -> str:
 
 
 def main() -> None:
-    # Enrich graph/adapter with visual related-card image data first, then let
-    # the integrity layer validate the resulting canonical sources.
+    # Enrich graph/adapter with visual related-card image data first, then add
+    # reliability fallbacks and let integrity validate the canonical sources.
     related_grid.activate_sources()
+    reliability.activate_sources()
     generator, adapter = integrity.activate_sources()
 
     text = THEME.read_text(encoding="utf-8")
@@ -170,6 +174,8 @@ def main() -> None:
     ads.validate(text)
     text = related_grid.patch_theme(text)
     related_grid.validate(generator, adapter, text)
+    text = reliability.patch_theme(text)
+    reliability.validate(adapter, text)
     text = integrity.patch_theme(text)
     integrity.validate_integrity(text, generator, adapter)
     text = attention.patch_theme(text)
@@ -219,6 +225,14 @@ def main() -> None:
         "class='sia-related-grid'",
         "className = 'sia-related-card'",
         "className = 'sia-related-card-image'",
+        reliability.MEDIA_MARKER,
+        reliability.AUTHOR_MARKER,
+        reliability.CACHE_PREFIX,
+        "data:post.authorPhoto.url",
+        "data:post.authorProfileUrl",
+        "data:post.authorAboutMe",
+        "id='sia-author-profile-runtime'",
+        "expr:data-sia-post-id='data:post.id'",
         integrity.INTEGRITY_MARKER,
         "name='sia-bot-integrity'",
         "data-sia-relation-types",
@@ -249,7 +263,8 @@ def main() -> None:
     print("SIA v0.1 article featured image mode: responsive no-crop")
     print("SIA v0.1 editorial single-post header: primary silo, byline, labels and compact sharing")
     print("SIA v0.1 editorial single-post bottom: labels, optional disclosure, author card and share rail")
-    print("SIA v0.1 related silo: responsive 3-column visual cards with lazy post images")
+    print("SIA v0.1 related silo: responsive visual cards with cache-safe Blogger image hydration")
+    print("SIA v0.1 author profile: Blogger profile fields with same-origin feed avatar fallback")
     print("SIA v0.1 bot integrity: same-content semantic parity + no crawler-specific manipulation")
     print("SIA v0.1 evidence policy: semantic similarity is not supporting evidence")
     print("SIA v0.1 attention map: opt-in, memory-only, no telemetry, no automatic ad placement")
