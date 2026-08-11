@@ -3,6 +3,7 @@
 import importlib.util
 import math
 from pathlib import Path
+import subprocess
 import sys
 
 MODULE_PATH = Path("generator/generate_graph.py")
@@ -145,3 +146,5 @@ print(
         "evidence_status": base_neighbors[0]["evidence_status"],
     },
 )
+
+subprocess.run([sys.executable, "scripts/test_attention_map.py"], check=True)
