@@ -301,6 +301,121 @@
     .author-info h3 a { color: #0f172a; }
     .author-info p { margin: 0 0 8px 0; font-size: 14.5px; color: #475569; line-height: 1.5; }
     .author-info a.linkedin-btn { font-size: 13px; font-weight: 700; background: #eff6ff; color: #1d4ed8; padding: 4px 10px; border-radius: 6px; border: 1px solid #bfdbfe; display: inline-block; margin-top: 5px; }
+
+    /* SIA Related Silo Card Grid v0.1 */
+    .sia-related-section {
+      margin-top: 38px;
+      padding-top: 0;
+      border-top: 0;
+    }
+    .sia-related-shell { width: 100%; }
+    .sia-related-heading {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      margin: 0 0 25px;
+      padding: 11px 15px;
+      border: 0;
+      border-radius: 6px;
+      background: #1f2a86;
+      color: #fff;
+      font-size: 20px;
+      font-weight: 900;
+      line-height: 1.35;
+      letter-spacing: -.15px;
+    }
+    .sia-related-heading-icon {
+      flex: 0 0 auto;
+      font-size: 19px;
+      line-height: 1;
+      color: #fff;
+    }
+    .sia-related-status {
+      min-height: 0;
+      margin: -16px 0 14px;
+      color: #64748b;
+      font-size: 11px;
+    }
+    .sia-related-grid {
+      list-style: none;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 26px 24px;
+      margin: 0;
+      padding: 0;
+    }
+    .sia-related-card {
+      min-width: 0;
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+    .sia-related-card-link {
+      display: block;
+      color: #1e293b;
+      text-decoration: none;
+    }
+    .sia-related-card-link:hover { text-decoration: none; }
+    .sia-related-card-media {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      border-radius: 6px;
+      background: #e2e8f0;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, .08);
+    }
+    .sia-related-card-image {
+      display: block;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      border: 0;
+      border-radius: 0;
+      object-fit: cover;
+      object-position: center;
+      transition: transform .22s ease;
+    }
+    .sia-related-card-link:hover .sia-related-card-image { transform: scale(1.025); }
+    .sia-related-card-placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      padding: 12px;
+      color: #64748b;
+      background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+      font-size: 13px;
+      font-weight: 800;
+      text-align: center;
+    }
+    .sia-related-card-title {
+      display: block;
+      margin-top: 9px;
+      color: #1e293b;
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1.28;
+      overflow-wrap: anywhere;
+    }
+    .sia-related-card-link:hover .sia-related-card-title { color: #1d4ed8; }
+    .sia-related-empty {
+      grid-column: 1 / -1;
+      padding: 16px 0;
+      color: #64748b;
+      font-size: 14px;
+    }
+    @media (max-width: 700px) {
+      .sia-related-heading { font-size: 18px; margin-bottom: 20px; }
+      .sia-related-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 16px; }
+      .sia-related-card-title { font-size: 16px; }
+    }
+    @media (max-width: 480px) {
+      .sia-related-grid { grid-template-columns: 1fr; gap: 22px; }
+      .sia-related-card-title { font-size: 17px; }
+    }
+
     .widget-area { margin-top: 40px; padding-top: 30px; border-top: 2px dashed #e2e8f0; }
     .widget-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-top: 30px; }
     .popular-only-grid { grid-template-columns: 1fr; }
@@ -981,12 +1096,15 @@
                 </aside>
               </b:if>
 
-              <div class='widget-area'>
-                <div class='widget-box' style='border: none; padding: 0; box-shadow: none;'>
-                  <h3 id='silo-related-heading'>More From This Silo</h3>
-                  <div aria-live='polite' id='sia-hybrid-status' style='font-size:11px;color:#64748b;margin:-6px 0 9px;'></div>
-                  <ul class='widget-list' id='related-posts-list'>
-                    <li>Loading...</li>
+              <div class='widget-area sia-related-section'>
+                <div class='sia-related-shell'>
+                  <h3 class='sia-related-heading' id='silo-related-heading'>
+                    <span aria-hidden='true' class='sia-related-heading-icon'>&#9776;</span>
+                    <span>More From This Silo</span>
+                  </h3>
+                  <div aria-live='polite' class='sia-related-status' id='sia-hybrid-status'></div>
+                  <ul class='sia-related-grid' id='related-posts-list'>
+                    <li class='sia-related-empty'>Loading...</li>
                   </ul>
                 </div>
               </div>
@@ -1660,22 +1778,70 @@
     if (mode) el.setAttribute('data-mode', mode);
   }
 
+  function relatedImageUrl(value) {
+    var url = String(value || '').replace(/&amp;/g, '&').trim();
+    if (!url) return '';
+    return url
+      .replace(/\/s\d+(?:-[^/]+)?\//i, '/s640/')
+      .replace(/\/w\d+(?:-h\d+)?(?:-[^/]+)?\//i, '/s640/')
+      .replace(/=w\d+(?:-h\d+)?(?:-[^/?#]+)?$/i, '=w640');
+  }
+
+  function entryImage(entry) {
+    var body = '';
+    if (entry && entry.content && entry.content.$t) body = entry.content.$t;
+    else if (entry && entry.summary && entry.summary.$t) body = entry.summary.$t;
+    var match = String(body || '').match(/<img\b[^>]*\bsrc=["']([^"']+)["']/i);
+    if (match && match[1]) return relatedImageUrl(match[1]);
+    var thumb = entry && entry['media$thumbnail'] ? entry['media$thumbnail'].url : '';
+    return relatedImageUrl(thumb || '');
+  }
+
   function renderRelated(items, mode) {
     var list = document.getElementById(cfg.relatedTarget);
     if (!list) return;
 
     list.innerHTML = '';
     if (!items || !items.length) {
-      list.innerHTML = '<li>No sufficiently relevant posts found.</li>';
+      var empty = document.createElement('li');
+      empty.className = 'sia-related-empty';
+      empty.textContent = 'No sufficiently relevant posts found.';
+      list.appendChild(empty);
       list.setAttribute('data-sia-mode', mode || 'unknown');
       return;
     }
 
     items.slice(0, cfg.maxRelated).forEach(function (item) {
       var li = document.createElement('li');
+      li.className = 'sia-related-card';
+
       var a = document.createElement('a');
+      a.className = 'sia-related-card-link';
       a.href = item.url;
-      a.textContent = item.title;
+      a.setAttribute('aria-label', item.title || 'Related article');
+
+      var media = document.createElement('span');
+      media.className = 'sia-related-card-media';
+      var imageUrl = relatedImageUrl(item.image || '');
+      if (imageUrl) {
+        var img = document.createElement('img');
+        img.className = 'sia-related-card-image';
+        img.src = imageUrl;
+        img.alt = item.title || 'Related article';
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        media.appendChild(img);
+      } else {
+        var placeholder = document.createElement('span');
+        placeholder.className = 'sia-related-card-placeholder';
+        placeholder.textContent = 'Article';
+        media.appendChild(placeholder);
+      }
+
+      var title = document.createElement('span');
+      title.className = 'sia-related-card-title';
+      title.textContent = item.title;
+
       if (item.score !== undefined) a.setAttribute('data-sia-score', item.score);
       if (item.reasons && item.reasons.length) {
         a.setAttribute('data-sia-reasons', item.reasons.join(','));
@@ -1686,6 +1852,8 @@
       if (item.evidence_status) {
         a.setAttribute('data-sia-evidence-status', item.evidence_status);
       }
+      a.appendChild(media);
+      a.appendChild(title);
       li.appendChild(a);
       list.appendChild(li);
     });
@@ -1848,6 +2016,7 @@
         id: ref.id,
         title: p.title || 'Untitled',
         url: p.url,
+        image: relatedImageUrl(p.image || ''),
         score: ref.score,
         similarity: ref.similarity !== undefined ? ref.similarity : ref.score,
         relation_types: ref.relation_types || ['related'],
@@ -1879,6 +2048,7 @@
     return {
       title: entry.title && entry.title.$t ? entry.title.$t : 'Untitled',
       url: link ? link.href : '',
+      image: entryImage(entry),
       labels: (entry.category || []).map(function (c) { return c.term || ''; }).filter(Boolean)
     };
   }
@@ -2009,6 +2179,7 @@
       return {
         title: p.title,
         url: p.url,
+        image: p.image || '',
         score: s.score,
         similarity: s.score,
         distance: Math.round((1 - (s.score / 100)) * 1000000) / 1000000,

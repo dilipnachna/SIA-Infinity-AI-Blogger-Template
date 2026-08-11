@@ -125,6 +125,7 @@ class Post:
     facets: List[str]
     entities: List[str]
     silo: str
+    featured_image: str = ""
 
 
 def utc_now_iso() -> str:
@@ -192,6 +193,16 @@ def extract_link(entry: dict, rel: str = "alternate") -> str:
     return ""
 
 
+def extract_featured_image(entry: dict, body: str) -> str:
+    # Prefer the first body image so visual cards do not inherit a tiny/square
+    # media thumbnail crop. Fall back to Blogger media$thumbnail when needed.
+    match = re.search(r'<img\b[^>]*\bsrc=["\']([^"\']+)["\']', body or "", re.I)
+    if match:
+        return html.unescape(match.group(1)).strip()
+    thumbnail = entry.get("media$thumbnail", {}) or {}
+    return html.unescape(thumbnail.get("url", "") or "").strip()
+
+
 def parse_entry(entry: dict) -> dict:
     labels = [
         c.get("term", "").strip()
@@ -211,6 +222,7 @@ def parse_entry(entry: dict) -> dict:
         "labels": labels,
         "published": entry.get("published", {}).get("$t", ""),
         "updated": entry.get("updated", {}).get("$t", ""),
+        "featured_image": extract_featured_image(entry, body),
         "text": strip_html(body),
     }
 
@@ -393,6 +405,7 @@ def build_posts(raw_posts, content_lookup, facet_lookup, candidates, preferred, 
             facets=facets,
             entities=entities,
             silo=silo,
+            featured_image=raw.get("featured_image", ""),
         ))
 
     return posts
@@ -786,6 +799,7 @@ def main():
             "content_types": p.content_types,
             "facets": p.facets,
             "entities": p.entities,
+            "image": p.featured_image,
             "related": related.get(p.id, []),
         }
 

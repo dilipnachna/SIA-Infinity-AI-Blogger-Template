@@ -101,22 +101,70 @@
     if (mode) el.setAttribute('data-mode', mode);
   }
 
+  function relatedImageUrl(value) {
+    var url = String(value || '').replace(/&amp;/g, '&').trim();
+    if (!url) return '';
+    return url
+      .replace(/\/s\d+(?:-[^/]+)?\//i, '/s640/')
+      .replace(/\/w\d+(?:-h\d+)?(?:-[^/]+)?\//i, '/s640/')
+      .replace(/=w\d+(?:-h\d+)?(?:-[^/?#]+)?$/i, '=w640');
+  }
+
+  function entryImage(entry) {
+    var body = '';
+    if (entry && entry.content && entry.content.$t) body = entry.content.$t;
+    else if (entry && entry.summary && entry.summary.$t) body = entry.summary.$t;
+    var match = String(body || '').match(/<img\b[^>]*\bsrc=["']([^"']+)["']/i);
+    if (match && match[1]) return relatedImageUrl(match[1]);
+    var thumb = entry && entry['media$thumbnail'] ? entry['media$thumbnail'].url : '';
+    return relatedImageUrl(thumb || '');
+  }
+
   function renderRelated(items, mode) {
     var list = document.getElementById(cfg.relatedTarget);
     if (!list) return;
 
     list.innerHTML = '';
     if (!items || !items.length) {
-      list.innerHTML = '<li>No sufficiently relevant posts found.</li>';
+      var empty = document.createElement('li');
+      empty.className = 'sia-related-empty';
+      empty.textContent = 'No sufficiently relevant posts found.';
+      list.appendChild(empty);
       list.setAttribute('data-sia-mode', mode || 'unknown');
       return;
     }
 
     items.slice(0, cfg.maxRelated).forEach(function (item) {
       var li = document.createElement('li');
+      li.className = 'sia-related-card';
+
       var a = document.createElement('a');
+      a.className = 'sia-related-card-link';
       a.href = item.url;
-      a.textContent = item.title;
+      a.setAttribute('aria-label', item.title || 'Related article');
+
+      var media = document.createElement('span');
+      media.className = 'sia-related-card-media';
+      var imageUrl = relatedImageUrl(item.image || '');
+      if (imageUrl) {
+        var img = document.createElement('img');
+        img.className = 'sia-related-card-image';
+        img.src = imageUrl;
+        img.alt = item.title || 'Related article';
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        media.appendChild(img);
+      } else {
+        var placeholder = document.createElement('span');
+        placeholder.className = 'sia-related-card-placeholder';
+        placeholder.textContent = 'Article';
+        media.appendChild(placeholder);
+      }
+
+      var title = document.createElement('span');
+      title.className = 'sia-related-card-title';
+      title.textContent = item.title;
+
       if (item.score !== undefined) a.setAttribute('data-sia-score', item.score);
       if (item.reasons && item.reasons.length) {
         a.setAttribute('data-sia-reasons', item.reasons.join(','));
@@ -127,6 +175,8 @@
       if (item.evidence_status) {
         a.setAttribute('data-sia-evidence-status', item.evidence_status);
       }
+      a.appendChild(media);
+      a.appendChild(title);
       li.appendChild(a);
       list.appendChild(li);
     });
@@ -289,6 +339,7 @@
         id: ref.id,
         title: p.title || 'Untitled',
         url: p.url,
+        image: relatedImageUrl(p.image || ''),
         score: ref.score,
         similarity: ref.similarity !== undefined ? ref.similarity : ref.score,
         relation_types: ref.relation_types || ['related'],
@@ -320,6 +371,7 @@
     return {
       title: entry.title && entry.title.$t ? entry.title.$t : 'Untitled',
       url: link ? link.href : '',
+      image: entryImage(entry),
       labels: (entry.category || []).map(function (c) { return c.term || ''; }).filter(Boolean)
     };
   }
@@ -450,6 +502,7 @@
       return {
         title: p.title,
         url: p.url,
+        image: p.image || '',
         score: s.score,
         similarity: s.score,
         distance: Math.round((1 - (s.score / 100)) * 1000000) / 1000000,
