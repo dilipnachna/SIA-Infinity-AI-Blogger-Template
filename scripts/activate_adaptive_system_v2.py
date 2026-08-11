@@ -10,6 +10,10 @@ the original image composition and only resizes responsively.
 
 Publisher-neutral Blogger Layout ad zones are also activated without modifying
 the proven Blog1 post loop or embedding any AdSense publisher ID.
+
+Single posts use the SIA editorial hero header: Primary Silo kicker, large H1,
+dynamic author byline, date/label pills and compact share actions. No fake
+author verification state is rendered.
 """
 from pathlib import Path
 import html
@@ -18,6 +22,7 @@ import xml.etree.ElementTree as ET
 
 import activate_adaptive_system as base
 import activate_adsense_zones as ads
+import activate_single_post_header as editorial
 
 THEME = Path("theme/SIA-Infinity-AI-Blogger-Template-v0.1.xml")
 
@@ -130,6 +135,9 @@ def main() -> None:
     text = base.patch_sharing(text)
     text = base.patch_footer_and_ads(text)
     text = patch_breadcrumb_schema(text)
+    text = editorial.patch_css(text)
+    text = editorial.patch_markup(text)
+    editorial.validate(text)
     text = ads.patch_css(text)
     text = ads.patch_slots(text)
     ads.validate(text)
@@ -157,6 +165,11 @@ def main() -> None:
         "<h1 class='post-title'><data:post.title/></h1>",
         "id='footer-links'",
         "max-snippet:-1",
+        editorial.MARKER,
+        "class='single-post-kicker'",
+        "class='single-post-hero'",
+        "class='single-post-byline'",
+        "class='single-post-share-row'",
         ads.MARKER,
         "id='sia-ad-top'",
         "id='sia-ad-bottom'",
@@ -178,6 +191,7 @@ def main() -> None:
 
     print("SIA v0.1 adaptive Blogger system hardening activated for " + base.REPOSITORY)
     print("SIA v0.1 article featured image mode: responsive no-crop")
+    print("SIA v0.1 editorial single-post header: primary silo, byline, labels and compact sharing")
     print("SIA v0.1 ad zones: publisher-neutral top, bottom and feed layout sections")
 
 
