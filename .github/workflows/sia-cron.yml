@@ -29,6 +29,11 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      BLOGGER_API_MODE: auto
+      BLOGGER_CLIENT_ID: ${{ secrets.BLOGGER_CLIENT_ID }}
+      BLOGGER_CLIENT_SECRET: ${{ secrets.BLOGGER_CLIENT_SECRET }}
+      BLOGGER_REFRESH_TOKEN: ${{ secrets.BLOGGER_REFRESH_TOKEN }}
+      BLOGGER_API_KEY: ${{ secrets.BLOGGER_API_KEY }}
 
     steps:
       - name: Checkout repository
@@ -38,6 +43,14 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Check Blogger API v3 source mode
+        run: |
+          python scripts/blogger_api.py --check-env
+
+      - name: Test Blogger API v3 integration
+        run: |
+          python scripts/test_blogger_api.py
 
       - name: Normalize v0.1 adaptive theme and intelligence runtime
         run: |
@@ -83,7 +96,11 @@ jobs:
         run: |
           python -m py_compile \
             generator/generate_graph.py \
+            scripts/blogger_api.py \
+            scripts/blogger_oauth_setup.py \
+            scripts/generate_graph_with_blogger_api.py \
             scripts/generate_all_graphs.py \
+            scripts/test_blogger_api.py \
             scripts/update_edge_manifest.py \
             scripts/activate_fibonacci_knn.py \
             scripts/test_fibonacci_knn.py \
