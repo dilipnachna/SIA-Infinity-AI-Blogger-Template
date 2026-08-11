@@ -84,7 +84,8 @@
     .post-meta { font-size: 14px; color: #64748b; margin-bottom: 25px; padding-bottom: 25px; border-bottom: 1px solid #f1f5f9; }
     .post-meta b a { color: #334155; }
     .featured-img-box { margin-bottom: 30px; }
-    .featured-img-box img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); display: block; }
+    .featured-img-box { background: #f8fafc; border-radius: 12px; overflow: hidden; }
+    .featured-img-box img { width: 100%; aspect-ratio: 16/9; object-fit: contain; object-position: center; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); display: block; }
 
     /* Home / Label / Archive / Search post cards */
     .feed-card-layout { display: grid; grid-template-columns: minmax(220px, 260px) minmax(0, 1fr); gap: 24px; align-items: start; }
@@ -711,10 +712,11 @@
 
               <b:if cond='data:post.featuredImage'>
                 <div class='featured-img-box'>
-                  <img decoding='async'
+                  <img data-sia-image-mode='no-crop'
+                       decoding='async'
                        expr:alt='data:post.title'
-                       expr:src='resizeImage(data:post.featuredImage, 1200, &quot;1200:675&quot;)'
-                       expr:srcset='resizeImage(data:post.featuredImage, 320, &quot;320:180&quot;) + &quot; 320w, &quot; + resizeImage(data:post.featuredImage, 480, &quot;480:270&quot;) + &quot; 480w, &quot; + resizeImage(data:post.featuredImage, 640, &quot;640:360&quot;) + &quot; 640w, &quot; + resizeImage(data:post.featuredImage, 960, &quot;960:540&quot;) + &quot; 960w, &quot; + resizeImage(data:post.featuredImage, 1200, &quot;1200:675&quot;) + &quot; 1200w&quot;'
+                       expr:src='resizeImage(data:post.featuredImage, 1200)'
+                       expr:srcset='resizeImage(data:post.featuredImage, 320) + &quot; 320w, &quot; + resizeImage(data:post.featuredImage, 480) + &quot; 480w, &quot; + resizeImage(data:post.featuredImage, 640) + &quot; 640w, &quot; + resizeImage(data:post.featuredImage, 960) + &quot; 960w, &quot; + resizeImage(data:post.featuredImage, 1200) + &quot; 1200w&quot;'
                        fetchpriority='high'
                        height='675'
                        id='sia-featured-image'
