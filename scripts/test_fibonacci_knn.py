@@ -150,3 +150,4 @@ print(
 subprocess.run([sys.executable, "scripts/test_attention_map.py"], check=True)
 subprocess.run([sys.executable, "scripts/test_related_silo_grid.py"], check=True)
 subprocess.run([sys.executable, "scripts/test_media_author_reliability.py"], check=True)
+subprocess.run([sys.executable, "scripts/test_cwv_budget.py"], check=True)
