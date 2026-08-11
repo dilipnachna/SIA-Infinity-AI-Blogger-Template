@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Harden SIA v0.1 related-media and Blogger author-profile rendering.
 
-This layer fixes two progressive-enhancement gaps without changing the
+This layer fixes progressive-enhancement gaps without changing the
 Fibonacci-KNN relation engine:
 
 1. Related-card images:
    - invalidate pre-image graph caches inside the same public v0.1 line
    - if a precomputed relation still lacks an image, hydrate it from the
      current Primary Silo Blogger feed before rendering
+   - if an older archive still exposes no feed thumbnail, recover an image
+     from that related post's same-origin HTML during browser idle time
 
 2. Blogger author profile:
    - prefer Blogger's flat post profile fields used by classic Blog widgets
@@ -25,6 +27,7 @@ ADAPTER = Path("assets/sia-graph-adapter-v0.1.js")
 THEME = Path("theme/SIA-Infinity-AI-Blogger-Template-v0.1.xml")
 
 MEDIA_MARKER = "SIA Related Media Reliability v0.1"
+PAGE_RECOVERY_MARKER = "SIA Related Post Image Recovery v0.1"
 AUTHOR_MARKER = "SIA Blogger Author Profile Hydration v0.1"
 CACHE_PREFIX = "sia_graph_v01_media2:"
 
@@ -71,6 +74,64 @@ MEDIA_HELPER = r'''
       if (image) item.image = image;
     });
     return items;
+  }
+'''
+
+PAGE_RECOVERY_HELPER = r'''
+  /* SIA Related Post Image Recovery v0.1 */
+  async function recoverRelatedImageFromHtml(item) {
+    if (!item || relatedImageUrl(item.image) || !item.url) return false;
+
+    try {
+      var target = new URL(item.url, window.location.href);
+      if (target.origin !== window.location.origin) return false;
+
+      var response = await fetch(target.href, {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'force-cache'
+      });
+      if (!response.ok) return false;
+
+      var source = await response.text();
+      var parsed = new DOMParser().parseFromString(source, 'text/html');
+      var metaImage = parsed.querySelector('meta[property="og:image"]');
+      var image = metaImage && metaImage.content ? metaImage.content : '';
+
+      if (!image) {
+        var node = parsed.querySelector('#sia-featured-image, .post-body img, article img');
+        if (node) {
+          image = node.getAttribute('src') || node.getAttribute('data-src') || '';
+        }
+      }
+
+      image = relatedImageUrl(image);
+      if (!image) return false;
+      item.image = image;
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function scheduleRelatedImageRecovery(items, mode) {
+    var targets = (items || []).slice(0, cfg.maxRelated).filter(function(item) {
+      return item && item.url && !relatedImageUrl(item.image);
+    });
+    if (!targets.length) return;
+
+    var recover = function() {
+      Promise.all(targets.map(recoverRelatedImageFromHtml)).then(function(results) {
+        var changed = results.some(function(value) { return value === true; });
+        if (changed) renderRelated(items, mode);
+      }).catch(function() {});
+    };
+
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(recover, { timeout: 1800 });
+    } else {
+      window.setTimeout(recover, 1200);
+    }
   }
 '''
 
@@ -190,11 +251,16 @@ AUTHOR_RUNTIME = r'''
 def patch_adapter(text: str) -> str:
     text = text.replace("return 'sia_graph_v01:' + url;", f"return '{CACHE_PREFIX}' + url;")
 
+    anchor = "\n  async function boot() {\n"
     if MEDIA_MARKER not in text:
-        anchor = "\n  async function boot() {\n"
         if anchor not in text:
             raise RuntimeError("Hybrid boot anchor not found")
         text = text.replace(anchor, "\n" + MEDIA_HELPER + anchor, 1)
+
+    if PAGE_RECOVERY_MARKER not in text:
+        if anchor not in text:
+            raise RuntimeError("Hybrid boot anchor not found for page-image recovery")
+        text = text.replace(anchor, "\n" + PAGE_RECOVERY_HELPER + anchor, 1)
 
     old = "      var items = hydrateGraphRelated(loaded.graph, loaded.current);\n"
     new = "      var items = hydrateGraphRelated(loaded.graph, loaded.current);\n      items = await enrichRelatedImages(items);\n"
@@ -202,6 +268,20 @@ def patch_adapter(text: str) -> str:
         if old not in text:
             raise RuntimeError("Precomputed related hydration anchor not found")
         text = text.replace(old, new, 1)
+
+    precomputed_render = "      renderRelated(items, mode);\n      setStatus(\n"
+    precomputed_recovery = "      renderRelated(items, mode);\n      scheduleRelatedImageRecovery(items, mode);\n      setStatus(\n"
+    if precomputed_recovery not in text:
+        if precomputed_render not in text:
+            raise RuntimeError("Precomputed related render anchor not found")
+        text = text.replace(precomputed_render, precomputed_recovery, 1)
+
+    fallback_render = "      renderRelated(fallback, 'fallback');\n      setStatus('SIA Blogger Fallback Mode', 'fallback');\n"
+    fallback_recovery = "      renderRelated(fallback, 'fallback');\n      scheduleRelatedImageRecovery(fallback, 'fallback');\n      setStatus('SIA Blogger Fallback Mode', 'fallback');\n"
+    if fallback_recovery not in text:
+        if fallback_render not in text:
+            raise RuntimeError("Fallback related render anchor not found")
+        text = text.replace(fallback_render, fallback_recovery, 1)
     return text
 
 
@@ -244,13 +324,21 @@ def patch_theme(text: str) -> str:
 def validate(adapter: str, theme: str) -> None:
     required_adapter = [
         MEDIA_MARKER,
+        PAGE_RECOVERY_MARKER,
         CACHE_PREFIX,
         "async function enrichRelatedImages(items)",
+        "async function recoverRelatedImageFromHtml(item)",
+        "function scheduleRelatedImageRecovery(items, mode)",
         "items = await enrichRelatedImages(items)",
+        "scheduleRelatedImageRecovery(items, mode)",
+        "scheduleRelatedImageRecovery(fallback, 'fallback')",
         "fetchLabelPosts(labels[0])",
+        "target.origin !== window.location.origin",
+        "new DOMParser().parseFromString(source, 'text/html')",
     ]
     required_theme = [
         MEDIA_MARKER,
+        PAGE_RECOVERY_MARKER,
         CACHE_PREFIX,
         AUTHOR_MARKER,
         "id='sia-author-profile-runtime'",
@@ -260,6 +348,7 @@ def validate(adapter: str, theme: str) -> None:
         "expr:data-sia-post-id='data:post.id'",
         "'/feeds/posts/default/' + encodeURIComponent(postId) + '?alt=json'",
         "author['gd$image']",
+        "scheduleRelatedImageRecovery(items, mode)",
     ]
     missing = [x for x in required_adapter if x not in adapter]
     missing += [x for x in required_theme if x not in theme]
