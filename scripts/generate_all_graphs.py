@@ -77,7 +77,7 @@ def build_one(base_config: dict, item: dict) -> Path:
 
     try:
         subprocess.run(
-            [sys.executable, "generator/generate_graph.py", "--config", str(temp_path)],
+            [sys.executable, "scripts/generate_graph_with_blogger_api.py", "--config", str(temp_path)],
             check=True,
         )
     finally:
