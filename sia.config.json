@@ -1,6 +1,6 @@
 {
-  "blog_url": "https://dilipnachna.blogspot.com",
-  "output": "public/graphs/dilipnachna.blogspot.com/sia-graph.json",
+  "blog_url": "https://bestbloginhindi.blogspot.com",
+  "output": "public/graphs/bestbloginhindi.blogspot.com/sia-graph.json",
   "max_posts": 1000,
   "entity_min_occurrences": 2,
   "related_display_limit": 6,
