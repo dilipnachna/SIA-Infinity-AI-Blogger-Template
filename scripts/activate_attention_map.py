@@ -40,6 +40,7 @@ RUNTIME = r'''  <!-- SIA Fibonacci Attention Map v0.1 -->
       '.sia-ad-zone',
       '.adsbygoogle',
       'iframe',
+      'a',
       'button',
       'input',
       'textarea',
@@ -52,8 +53,7 @@ RUNTIME = r'''  <!-- SIA Fibonacci Attention Map v0.1 -->
       '.post-share-box',
       '.share-btn',
       '.native-share-btn',
-      '.copy-link-btn',
-      'a[download]'
+      '.copy-link-btn'
     ].join(',');
 
     var config = window.SIA_CONFIG || {};
@@ -257,6 +257,7 @@ def validate(text: str) -> None:
         "config.attentionMode === 'recommend'",
         "'.sia-ad-zone'",
         "'.adsbygoogle'",
+        "'a',",
     ]
     missing = [marker for marker in required if marker not in text]
     if missing:
