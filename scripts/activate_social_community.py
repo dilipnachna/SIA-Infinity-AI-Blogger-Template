@@ -8,6 +8,7 @@ Rules:
 - keep the existing SIA project attribution
 - add only public sharing/discovery functionality
 - remain idempotent for hourly GitHub Actions runs
+- accept either the legacy full share box or the newer editorial share rail
 """
 from pathlib import Path
 import html
@@ -206,7 +207,11 @@ def patch_theme(text: str) -> str:
             1,
         )
 
-    if "class='share-btn linkedin'" not in text:
+    # Legacy themes may still have the original full share box. Newer SIA
+    # themes use the editorial bottom share rail, which is already wired to the
+    # same encoded runtime and must not be reconstructed here.
+    editorial_share_ready = "class='single-post-bottom-share'" in text
+    if "class='share-btn linkedin'" not in text and not editorial_share_ready:
         if OLD_SHARE not in text:
             raise RuntimeError("Existing share block did not match expected v0.1 source")
         text = text.replace(OLD_SHARE, NEW_SHARE, 1)
@@ -262,10 +267,6 @@ def main() -> None:
 
     required = [
         "name='sia-template'",
-        "class='share-btn linkedin'",
-        "class='share-btn reddit'",
-        "class='share-btn pinterest'",
-        "class='share-btn native-share native-share-btn'",
         "id='sia-community-link'",
         "id='sia-community-count'",
         "id='sia-community-runtime'",
@@ -276,6 +277,29 @@ def main() -> None:
     missing = [item for item in required if item not in final]
     if missing:
         raise RuntimeError("Missing social/community markers: " + ", ".join(missing))
+
+    legacy_share_ready = all(
+        marker in final
+        for marker in (
+            "class='share-btn linkedin'",
+            "class='share-btn reddit'",
+            "class='share-btn pinterest'",
+            "class='share-btn native-share native-share-btn'",
+        )
+    )
+    editorial_share_ready = all(
+        marker in final
+        for marker in (
+            "class='single-post-bottom-share'",
+            "data-sia-share='facebook'",
+            "data-sia-share='x'",
+            "data-sia-share='whatsapp'",
+            "data-sia-share='telegram'",
+            "class='single-post-bottom-share-btn native-share native-share-btn'",
+        )
+    )
+    if not (legacy_share_ready or editorial_share_ready):
+        raise RuntimeError("No valid SIA post sharing surface found")
 
     print("SIA v0.1 social sharing and verified Blogger community UI activated")
 
