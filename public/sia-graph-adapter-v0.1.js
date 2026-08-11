@@ -185,7 +185,7 @@
   }
 
   function graphCacheKey(url) {
-    return 'sia_graph_v01:' + url;
+    return 'sia_graph_v01_media2:' + url;
   }
 
   function manifestCacheKey(url) {
@@ -537,6 +537,51 @@
     }).slice(0, cfg.maxRelated);
   }
 
+
+  /* SIA Related Media Reliability v0.1 */
+  async function enrichRelatedImages(items) {
+    if (!Array.isArray(items) || !items.length) return items || [];
+    var missing = items.some(function(item) { return !relatedImageUrl(item && item.image); });
+    if (!missing) return items;
+
+    var labels = currentLabels();
+    var candidates = [];
+    if (labels.length) {
+      try {
+        candidates = await fetchLabelPosts(labels[0]);
+      } catch (e) {}
+    }
+
+    if (!candidates.length) {
+      try {
+        var response = await fetch(
+          '/feeds/posts/default?alt=json&max-results=' + cfg.fallbackMaxResults,
+          { credentials: 'same-origin' }
+        );
+        if (response.ok) {
+          var data = await response.json();
+          var entries = data && data.feed && Array.isArray(data.feed.entry) ? data.feed.entry : [];
+          candidates = entries.map(entryToPost);
+        }
+      } catch (e2) {}
+    }
+
+    if (!candidates.length) return items;
+    var imagesByUrl = {};
+    candidates.forEach(function(post) {
+      var key = cleanUrl(post && post.url);
+      var image = relatedImageUrl(post && post.image);
+      if (key && image && !imagesByUrl[key]) imagesByUrl[key] = image;
+    });
+
+    items.forEach(function(item) {
+      if (!item || relatedImageUrl(item.image)) return;
+      var image = imagesByUrl[cleanUrl(item.url)];
+      if (image) item.image = image;
+    });
+    return items;
+  }
+
   async function boot() {
     if (!document.getElementById(cfg.relatedTarget)) return;
 
@@ -544,6 +589,7 @@
       setStatus('Loading SIA precomputed intelligence...', 'loading');
       var loaded = await loadCurrentGraph();
       var items = hydrateGraphRelated(loaded.graph, loaded.current);
+      items = await enrichRelatedImages(items);
       var mode = loaded.source === 'edge' ? 'precomputed-edge' : 'precomputed-github';
 
       renderRelated(items, mode);

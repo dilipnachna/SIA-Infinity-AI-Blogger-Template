@@ -611,7 +611,7 @@
         </b:includable>
         <b:includable id='aboutPostAuthor'>
   <div class='author-name'>
-    <a class='g-profile' expr:href='data:post.author.profileUrl' rel='author' title='author profile'>
+    <a class='g-profile' expr:href='data:post.authorProfileUrl' rel='author' title='author profile'>
       <span>
         <data:post.author.name/>
       </span>
@@ -619,7 +619,7 @@
   </div>
   <div>
     <span class='author-desc'>
-      <data:post.author.aboutMe/>
+      <data:post.authorAboutMe/>
     </span>
   </div>
 </b:includable>
@@ -916,23 +916,23 @@
             <b:if cond='data:view.isSingleItem'>
               <!-- Full content only on an individual Post/Page -->
               <b:if cond='data:view.isPost'>
-                <header class='single-post-hero'>
+                <header class='single-post-hero' expr:data-sia-post-id='data:post.id'>
                   <h1 class='post-title'><data:post.title/></h1>
 
                   <div class='single-post-byline'>
-                    <b:if cond='data:post.author.authorPhoto.url'>
+                    <b:if cond='data:post.authorPhoto.url'>
                       <img class='single-post-author-avatar'
                            decoding='async'
                            expr:alt='data:post.author.name'
-                           expr:src='data:post.author.authorPhoto.url'
+                           expr:src='data:post.authorPhoto.url'
                            height='50'
                            width='50'/>
                     </b:if>
                     <div class='single-post-byline-copy'>
                       <div class='single-post-author-line'>
                         By
-                        <b:if cond='data:post.author.profileUrl'>
-                          <a expr:href='data:post.author.profileUrl' rel='author'><data:post.author.name/></a>
+                        <b:if cond='data:post.authorProfileUrl'>
+                          <a expr:href='data:post.authorProfileUrl' rel='author'><data:post.author.name/></a>
                         <b:else/>
                           <data:post.author.name/>
                         </b:if>
@@ -1000,26 +1000,26 @@
                     </div>
                   </aside>
 
-                  <div expr:class='data:post.author.authorPhoto.url ? &quot;single-post-author-card&quot; : &quot;single-post-author-card no-avatar&quot;'>
-                    <b:if cond='data:post.author.authorPhoto.url'>
+                  <div expr:class='data:post.authorPhoto.url ? &quot;single-post-author-card&quot; : &quot;single-post-author-card no-avatar&quot;' expr:data-sia-post-id='data:post.id'>
+                    <b:if cond='data:post.authorPhoto.url'>
                       <img class='single-post-author-card-avatar'
                            decoding='async'
                            expr:alt='data:post.author.name'
-                           expr:src='data:post.author.authorPhoto.url'
+                           expr:src='data:post.authorPhoto.url'
                            height='124'
                            loading='lazy'
                            width='124'/>
                     </b:if>
                     <div class='single-post-author-card-copy'>
                       <h3 class='single-post-author-card-name'>
-                        <b:if cond='data:post.author.profileUrl'>
-                          <a expr:href='data:post.author.profileUrl' rel='author'><data:post.author.name/></a>
+                        <b:if cond='data:post.authorProfileUrl'>
+                          <a expr:href='data:post.authorProfileUrl' rel='author'><data:post.author.name/></a>
                         <b:else/>
                           <data:post.author.name/>
                         </b:if>
                       </h3>
-                      <b:if cond='data:post.author.aboutMe'>
-                        <p class='single-post-author-card-bio'><data:post.author.aboutMe/></p>
+                      <b:if cond='data:post.authorAboutMe'>
+                        <p class='single-post-author-card-bio'><data:post.authorAboutMe/></p>
                       <b:else/>
                         <p class='single-post-author-card-bio'>Author of <data:blog.title/>.</p>
                       </b:if>
@@ -1157,10 +1157,10 @@
   </div>
 </b:includable>
         <b:includable id='postFooterAuthorProfile' var='post'>
-  <b:if cond='data:post.author.aboutMe and data:view.isPost'>
+  <b:if cond='data:post.authorAboutMe and data:view.isPost'>
     <div class='author-profile'>
-      <b:if cond='data:post.author.authorPhoto.url'>
-        <img class='author-image' expr:src='data:post.author.authorPhoto.url' width='50px'/>
+      <b:if cond='data:post.authorPhoto.url'>
+        <img class='author-image' expr:src='data:post.authorPhoto.url' width='50px'/>
         <div class='author-about'>
           <b:include data='post' name='aboutPostAuthor'/>
         </div>
@@ -1862,7 +1862,7 @@
   }
 
   function graphCacheKey(url) {
-    return 'sia_graph_v01:' + url;
+    return 'sia_graph_v01_media2:' + url;
   }
 
   function manifestCacheKey(url) {
@@ -2214,6 +2214,51 @@
     }).slice(0, cfg.maxRelated);
   }
 
+
+  /* SIA Related Media Reliability v0.1 */
+  async function enrichRelatedImages(items) {
+    if (!Array.isArray(items) || !items.length) return items || [];
+    var missing = items.some(function(item) { return !relatedImageUrl(item && item.image); });
+    if (!missing) return items;
+
+    var labels = currentLabels();
+    var candidates = [];
+    if (labels.length) {
+      try {
+        candidates = await fetchLabelPosts(labels[0]);
+      } catch (e) {}
+    }
+
+    if (!candidates.length) {
+      try {
+        var response = await fetch(
+          '/feeds/posts/default?alt=json&max-results=' + cfg.fallbackMaxResults,
+          { credentials: 'same-origin' }
+        );
+        if (response.ok) {
+          var data = await response.json();
+          var entries = data && data.feed && Array.isArray(data.feed.entry) ? data.feed.entry : [];
+          candidates = entries.map(entryToPost);
+        }
+      } catch (e2) {}
+    }
+
+    if (!candidates.length) return items;
+    var imagesByUrl = {};
+    candidates.forEach(function(post) {
+      var key = cleanUrl(post && post.url);
+      var image = relatedImageUrl(post && post.image);
+      if (key && image && !imagesByUrl[key]) imagesByUrl[key] = image;
+    });
+
+    items.forEach(function(item) {
+      if (!item || relatedImageUrl(item.image)) return;
+      var image = imagesByUrl[cleanUrl(item.url)];
+      if (image) item.image = image;
+    });
+    return items;
+  }
+
   async function boot() {
     if (!document.getElementById(cfg.relatedTarget)) return;
 
@@ -2221,6 +2266,7 @@
       setStatus('Loading SIA precomputed intelligence...', 'loading');
       var loaded = await loadCurrentGraph();
       var items = hydrateGraphRelated(loaded.graph, loaded.current);
+      items = await enrichRelatedImages(items);
       var mode = loaded.source === 'edge' ? 'precomputed-edge' : 'precomputed-github';
 
       renderRelated(items, mode);
@@ -2299,6 +2345,117 @@
       badge.textContent = String(cfg.editorialDisclosureBadge || '').trim();
       box.hidden = false;
     });
+    //]]>
+    </script>
+  </b:if>
+
+
+  <!-- SIA Blogger Author Profile Hydration v0.1 -->
+  <b:if cond='data:view.isPost'>
+    <script id='sia-author-profile-runtime'>
+    //<![CDATA[
+    (function(window, document) {
+      'use strict';
+
+      function textValue(node) {
+        return node && node.$t ? String(node.$t).trim() : '';
+      }
+
+      function safeImage(value) {
+        return String(value || '').trim().replace(/^http:\/\//i, 'https://');
+      }
+
+      function addHeaderAvatar(image, name) {
+        var byline = document.querySelector('.single-post-byline');
+        if (!byline || byline.querySelector('.single-post-author-avatar')) return;
+        var copy = byline.querySelector('.single-post-byline-copy');
+        var img = document.createElement('img');
+        img.className = 'single-post-author-avatar';
+        img.src = image;
+        img.alt = name || 'Author';
+        img.width = 50;
+        img.height = 50;
+        img.decoding = 'async';
+        if (copy) byline.insertBefore(img, copy);
+        else byline.insertBefore(img, byline.firstChild);
+      }
+
+      function addCardAvatar(image, name) {
+        var card = document.querySelector('.single-post-author-card');
+        if (!card || card.querySelector('.single-post-author-card-avatar')) return;
+        var copy = card.querySelector('.single-post-author-card-copy');
+        var img = document.createElement('img');
+        img.className = 'single-post-author-card-avatar';
+        img.src = image;
+        img.alt = name || 'Author';
+        img.width = 124;
+        img.height = 124;
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        card.classList.remove('no-avatar');
+        if (copy) card.insertBefore(img, copy);
+        else card.insertBefore(img, card.firstChild);
+      }
+
+      function linkAuthor(profileUrl) {
+        if (!profileUrl) return;
+        var selectors = ['.single-post-author-line', '.single-post-author-card-name'];
+        selectors.forEach(function(selector) {
+          var box = document.querySelector(selector);
+          if (!box || box.querySelector('a')) return;
+          var text = String(box.textContent || '').trim();
+          var prefix = selector === '.single-post-author-line' && /^By\s+/i.test(text) ? 'By ' : '';
+          var name = prefix ? text.replace(/^By\s+/i, '') : text;
+          if (!name) return;
+          box.textContent = prefix;
+          var a = document.createElement('a');
+          a.href = profileUrl;
+          a.rel = 'author';
+          a.textContent = name;
+          box.appendChild(a);
+        });
+      }
+
+      function hydrate() {
+        var hero = document.querySelector('.single-post-hero[data-sia-post-id]');
+        var card = document.querySelector('.single-post-author-card[data-sia-post-id]');
+        var postId = hero ? hero.getAttribute('data-sia-post-id') : (card ? card.getAttribute('data-sia-post-id') : '');
+        if (!postId) return;
+
+        var headerHasAvatar = !!document.querySelector('.single-post-author-avatar');
+        var cardHasAvatar = !!document.querySelector('.single-post-author-card-avatar');
+        if (headerHasAvatar && cardHasAvatar) return;
+
+        fetch('/feeds/posts/default/' + encodeURIComponent(postId) + '?alt=json', {
+          credentials: 'same-origin',
+          cache: 'no-cache'
+        }).then(function(response) {
+          if (!response.ok) throw new Error('author-feed-' + response.status);
+          return response.json();
+        }).then(function(payload) {
+          var entry = payload && payload.entry ? payload.entry : null;
+          var author = entry && Array.isArray(entry.author) && entry.author.length ? entry.author[0] : null;
+          if (!author) return;
+
+          var image = safeImage(author['gd$image'] && author['gd$image'].src);
+          var name = textValue(author.name);
+          var profileUrl = textValue(author.uri);
+          if (image) {
+            addHeaderAvatar(image, name);
+            addCardAvatar(image, name);
+          }
+          if (profileUrl) linkAuthor(profileUrl);
+        }).catch(function() {
+          // Server-rendered Blogger author name remains the fallback.
+        });
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', hydrate, { once: true });
+      } else {
+        hydrate();
+      }
+    })(window, document);
     //]]>
     </script>
   </b:if>
