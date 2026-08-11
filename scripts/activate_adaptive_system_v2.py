@@ -3,6 +3,10 @@
 
 Uses the stable patch functions from activate_adaptive_system.py, but inserts
 BreadcrumbList only after the complete existing BlogPosting script/condition.
+
+The post-detail featured image is intentionally different from feed thumbnails:
+feed cards may crop to a presentation ratio, while the main article image keeps
+the original image composition and only resizes responsively.
 """
 from pathlib import Path
 import html
@@ -72,11 +76,53 @@ def patch_breadcrumb_schema(text: str) -> str:
     return text[:insert_pos] + block + text[insert_pos:]
 
 
+def patch_featured_image_no_crop(text: str) -> str:
+    """Keep the article featured image responsive without server-side cropping."""
+    cropped = '''                  <img decoding='async'
+                       expr:alt='data:post.title'
+                       expr:src='resizeImage(data:post.featuredImage, 1200, &quot;1200:675&quot;)'
+                       expr:srcset='resizeImage(data:post.featuredImage, 320, &quot;320:180&quot;) + &quot; 320w, &quot; + resizeImage(data:post.featuredImage, 480, &quot;480:270&quot;) + &quot; 480w, &quot; + resizeImage(data:post.featuredImage, 640, &quot;640:360&quot;) + &quot; 640w, &quot; + resizeImage(data:post.featuredImage, 960, &quot;960:540&quot;) + &quot; 960w, &quot; + resizeImage(data:post.featuredImage, 1200, &quot;1200:675&quot;) + &quot; 1200w&quot;'
+                       fetchpriority='high'
+                       height='675'
+                       id='sia-featured-image'
+                       loading='eager'
+                       sizes='(max-width: 840px) 100vw, 800px'
+                       width='1200'/>'''
+
+    no_crop = '''                  <img data-sia-image-mode='no-crop'
+                       decoding='async'
+                       expr:alt='data:post.title'
+                       expr:src='resizeImage(data:post.featuredImage, 1200)'
+                       expr:srcset='resizeImage(data:post.featuredImage, 320) + &quot; 320w, &quot; + resizeImage(data:post.featuredImage, 480) + &quot; 480w, &quot; + resizeImage(data:post.featuredImage, 640) + &quot; 640w, &quot; + resizeImage(data:post.featuredImage, 960) + &quot; 960w, &quot; + resizeImage(data:post.featuredImage, 1200) + &quot; 1200w&quot;'
+                       fetchpriority='high'
+                       height='675'
+                       id='sia-featured-image'
+                       loading='eager'
+                       sizes='(max-width: 840px) 100vw, 800px'
+                       width='1200'/>'''
+
+    if cropped in text:
+        text = text.replace(cropped, no_crop, 1)
+    elif "data-sia-image-mode='no-crop'" not in text:
+        raise RuntimeError("Article featured image block did not match expected adaptive source")
+
+    old_css = '''    .featured-img-box img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); display: block; }'''
+    new_css = '''    .featured-img-box { background: #f8fafc; border-radius: 12px; overflow: hidden; }
+    .featured-img-box img { width: 100%; aspect-ratio: 16/9; object-fit: contain; object-position: center; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); display: block; }'''
+    if old_css in text:
+        text = text.replace(old_css, new_css, 1)
+    elif "object-fit: contain" not in text:
+        raise RuntimeError("Featured image CSS did not match expected adaptive source")
+
+    return text
+
+
 def main() -> None:
     text = THEME.read_text(encoding="utf-8")
     text = base.patch_head(text)
     text = base.patch_heading_architecture(text)
     text = base.patch_featured_image(text)
+    text = patch_featured_image_no_crop(text)
     text = base.patch_sharing(text)
     text = base.patch_footer_and_ads(text)
     text = patch_breadcrumb_schema(text)
@@ -93,6 +139,9 @@ def main() -> None:
         base.BREADCRUMB_SCHEMA_MARKER,
         "name='sia-community-repository'",
         "id='sia-featured-image'",
+        "data-sia-image-mode='no-crop'",
+        "expr:src='resizeImage(data:post.featuredImage, 1200)'",
+        "object-fit: contain",
         "fetchpriority='high'",
         "expr:srcset=",
         base.DEDUPE_MARKER,
@@ -105,6 +154,8 @@ def main() -> None:
     missing = [marker for marker in required if marker not in text]
     if missing:
         raise RuntimeError("Missing adaptive Blogger markers: " + ", ".join(missing))
+    if "expr:src='resizeImage(data:post.featuredImage, 1200, &quot;1200:675&quot;)'" in text:
+        raise RuntimeError("Article featured image still requests a server-side crop")
     if 'let parentLink = bodyImg.parentNode;' in text:
         raise RuntimeError("Blind first-image hiding is still present")
     if "href='/p/about.html'" in text or "href='/p/privacy-policy.html'" in text:
@@ -113,6 +164,7 @@ def main() -> None:
         raise RuntimeError("Empty advertisement placeholder is still present")
 
     print("SIA v0.1 adaptive Blogger system hardening activated for " + base.REPOSITORY)
+    print("SIA v0.1 article featured image mode: responsive no-crop")
 
 
 if __name__ == "__main__":
