@@ -15,6 +15,9 @@ Single posts use the SIA editorial hero header and editorial footer treatment.
 The footer includes dynamic labels, an optional truth-safe disclosure, a large
 author card and full-width share actions. No fake author verification or AI
 assistance claim is rendered by default.
+
+Bot Integrity keeps human/crawler semantic reality aligned and Evidence-Aware
+Relations ensure semantic similarity is never promoted to supporting evidence.
 """
 from pathlib import Path
 import html
@@ -25,6 +28,7 @@ import activate_adaptive_system as base
 import activate_adsense_zones as ads
 import activate_single_post_header as editorial
 import activate_single_post_bottom as editorial_bottom
+import activate_integrity_evidence as integrity
 
 THEME = Path("theme/SIA-Infinity-AI-Blogger-Template-v0.1.xml")
 
@@ -129,6 +133,8 @@ def patch_featured_image_no_crop(text: str) -> str:
 
 
 def main() -> None:
+    generator, adapter = integrity.activate_sources()
+
     text = THEME.read_text(encoding="utf-8")
     text = base.patch_head(text)
     text = base.patch_heading_architecture(text)
@@ -147,6 +153,8 @@ def main() -> None:
     text = ads.patch_css(text)
     text = ads.patch_slots(text)
     ads.validate(text)
+    text = integrity.patch_theme(text)
+    integrity.validate_integrity(text, generator, adapter)
 
     if re.search(r"[\u0900-\u097F]", html.unescape(text)):
         raise RuntimeError("Universal Blogger XML contains Devanagari source text")
@@ -186,6 +194,10 @@ def main() -> None:
         "id='sia-ad-top'",
         "id='sia-ad-bottom'",
         "id='sia-ad-feed'",
+        integrity.INTEGRITY_MARKER,
+        "name='sia-bot-integrity'",
+        "data-sia-relation-types",
+        "data-sia-evidence-status",
     ]
     missing = [marker for marker in required if marker not in text]
     if missing:
@@ -205,6 +217,8 @@ def main() -> None:
     print("SIA v0.1 article featured image mode: responsive no-crop")
     print("SIA v0.1 editorial single-post header: primary silo, byline, labels and compact sharing")
     print("SIA v0.1 editorial single-post bottom: labels, optional disclosure, author card and share rail")
+    print("SIA v0.1 bot integrity: same-content semantic parity + no crawler-specific manipulation")
+    print("SIA v0.1 evidence policy: semantic similarity is not supporting evidence")
     print("SIA v0.1 ad zones: publisher-neutral top, bottom and feed layout sections")
 
 
