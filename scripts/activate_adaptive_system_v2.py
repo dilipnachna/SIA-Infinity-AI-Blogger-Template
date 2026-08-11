@@ -18,6 +18,10 @@ assistance claim is rendered by default.
 
 Bot Integrity keeps human/crawler semantic reality aligned and Evidence-Aware
 Relations ensure semantic similarity is never promoted to supporting evidence.
+
+The optional Fibonacci Attention Map measures only coarse in-memory interaction
+and dwell buckets. It never transmits telemetry, tracks ad clicks, or moves ads;
+it can only recommend an existing publisher-neutral ad zone.
 """
 from pathlib import Path
 import html
@@ -26,6 +30,7 @@ import xml.etree.ElementTree as ET
 
 import activate_adaptive_system as base
 import activate_adsense_zones as ads
+import activate_attention_map as attention
 import activate_single_post_header as editorial
 import activate_single_post_bottom as editorial_bottom
 import activate_integrity_evidence as integrity
@@ -158,6 +163,8 @@ def main() -> None:
     ads.validate(text)
     text = integrity.patch_theme(text)
     integrity.validate_integrity(text, generator, adapter)
+    text = attention.patch_theme(text)
+    attention.validate(text)
 
     if re.search(r"[\u0900-\u097F]", html.unescape(text)):
         raise RuntimeError("Universal Blogger XML contains Devanagari source text")
@@ -201,6 +208,13 @@ def main() -> None:
         "name='sia-bot-integrity'",
         "data-sia-relation-types",
         "data-sia-evidence-status",
+        attention.MARKER,
+        "name='sia-attention-map'",
+        "id='sia-attention-map-runtime'",
+        "window.SIAAttention",
+        "sia:attention-recommendation",
+        "autoPlace: false",
+        "telemetry: false",
     ]
     missing = [marker for marker in required if marker not in text]
     if missing:
@@ -222,6 +236,7 @@ def main() -> None:
     print("SIA v0.1 editorial single-post bottom: labels, optional disclosure, author card and share rail")
     print("SIA v0.1 bot integrity: same-content semantic parity + no crawler-specific manipulation")
     print("SIA v0.1 evidence policy: semantic similarity is not supporting evidence")
+    print("SIA v0.1 attention map: opt-in, memory-only, no telemetry, no automatic ad placement")
     print("SIA v0.1 ad zones: publisher-neutral top, bottom and feed layout sections")
 
 
