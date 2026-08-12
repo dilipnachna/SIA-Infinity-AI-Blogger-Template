@@ -41,13 +41,36 @@ def _clean_text(value: str) -> str:
     return SPACE_RE.sub(" ", html.unescape(TAG_RE.sub(" ", value or ""))).strip()
 
 
-def _first_image(post: dict) -> str:
+def _image_candidates(post: dict) -> List[str]:
+    """Return ordered, unique image URLs from API metadata plus post body.
+
+    Blogger API v3 can expose an ``images`` array in addition to images inside
+    the HTML body. Preserve both sources so acquisition does not throw away
+    useful visual candidates before the canonical graph selects its lead image.
+    """
+    seen = set()
+    out: List[str] = []
+
+    def add(value: object) -> None:
+        url = html.unescape(str(value or "")).strip()
+        if not url or url in seen:
+            return
+        seen.add(url)
+        out.append(url)
+
     for image in post.get("images") or []:
-        url = str((image or {}).get("url") or "").strip()
-        if url:
-            return html.unescape(url)
-    match = IMAGE_RE.search(str(post.get("content") or ""))
-    return html.unescape(match.group(1)).strip() if match else ""
+        add((image or {}).get("url"))
+
+    content = str(post.get("content") or "")
+    for url in IMAGE_RE.findall(content):
+        add(url)
+
+    return out
+
+
+def _first_image(post: dict) -> str:
+    images = _image_candidates(post)
+    return images[0] if images else ""
 
 
 def normalize_api_post(post: dict) -> dict:
@@ -55,6 +78,7 @@ def normalize_api_post(post: dict) -> dict:
     content = str(post.get("content") or "")
     author = post.get("author") or {}
     author_image = author.get("image") or {}
+    images = _image_candidates(post)
     return {
         "id": str(post.get("id") or ""),
         "title": str(post.get("title") or "").strip(),
@@ -62,7 +86,8 @@ def normalize_api_post(post: dict) -> dict:
         "labels": [str(x).strip() for x in (post.get("labels") or []) if str(x).strip()],
         "published": str(post.get("published") or ""),
         "updated": str(post.get("updated") or ""),
-        "featured_image": _first_image(post),
+        "featured_image": images[0] if images else "",
+        "image_candidates": images,
         "text": _clean_text(content),
         "author": {
             "id": str(author.get("id") or ""),
