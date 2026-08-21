@@ -2,7 +2,7 @@
   "sia": {
     "format": "sia-blogger-community-registry",
     "version": "0.1",
-    "generated_at": "2026-08-21T20:40:35+00:00",
+    "generated_at": "2026-08-21T21:38:00+00:00",
     "root_repository": "dilipnachna/SIA-Infinity-AI-Blogger-Template",
     "mode": "opt-in-repository-bound-blogspot-verification",
     "verification_grace_hours": 72,
@@ -24,7 +24,7 @@
       "source_repository": "dilipnachna/SIA-Infinity-AI-Blogger-Template",
       "status": "verified",
       "verification_state": "grace",
-      "consecutive_failures": 1,
+      "consecutive_failures": 2,
       "first_seen": "2026-08-17T16:45:04+00:00",
       "last_verified_at": "2026-08-21T19:36:29+00:00"
     },
@@ -37,7 +37,7 @@
       "source_repository": "dilipnachna/SIA-Infinity-AI-Blogger-Template",
       "status": "verified",
       "verification_state": "grace",
-      "consecutive_failures": 1,
+      "consecutive_failures": 2,
       "first_seen": "2026-08-17T16:45:04+00:00",
       "last_verified_at": "2026-08-21T19:36:29+00:00"
     },
@@ -50,7 +50,7 @@
       "source_repository": "dilipnachna/SIA-Infinity-AI-Blogger-Template",
       "status": "verified",
       "verification_state": "grace",
-      "consecutive_failures": 1,
+      "consecutive_failures": 2,
       "first_seen": "2026-08-17T16:45:04+00:00",
       "last_verified_at": "2026-08-21T19:36:29+00:00"
     },
@@ -63,7 +63,7 @@
       "source_repository": "dilipnachna/SIA-Infinity-AI-Blogger-Template",
       "status": "verified",
       "verification_state": "grace",
-      "consecutive_failures": 1,
+      "consecutive_failures": 2,
       "first_seen": "2026-08-17T16:45:04+00:00",
       "last_verified_at": "2026-08-21T19:36:29+00:00"
     },
@@ -76,7 +76,7 @@
       "source_repository": "dilipnachna/SIA-Infinity-AI-Blogger-Template",
       "status": "verified",
       "verification_state": "grace",
-      "consecutive_failures": 1,
+      "consecutive_failures": 2,
       "first_seen": "2026-08-17T16:45:04+00:00",
       "last_verified_at": "2026-08-21T19:36:29+00:00"
     }
