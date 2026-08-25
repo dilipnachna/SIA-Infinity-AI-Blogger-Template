@@ -2,7 +2,7 @@
   "sia": {
     "format": "sia-blogger-community-registry",
     "version": "0.1",
-    "generated_at": "2026-08-25T18:56:24+00:00",
+    "generated_at": "2026-08-25T19:45:27+00:00",
     "root_repository": "dilipnachna/SIA-Infinity-AI-Blogger-Template",
     "mode": "opt-in-repository-bound-blogspot-verification",
     "verification_grace_hours": 72,
@@ -26,7 +26,7 @@
       "verification_state": "current",
       "consecutive_failures": 0,
       "first_seen": "2026-08-17T16:45:04+00:00",
-      "last_verified_at": "2026-08-25T18:56:24+00:00"
+      "last_verified_at": "2026-08-25T19:45:27+00:00"
     },
     {
       "hostname": "bestbloginhindi.blogspot.com",
@@ -39,7 +39,7 @@
       "verification_state": "current",
       "consecutive_failures": 0,
       "first_seen": "2026-08-17T16:45:04+00:00",
-      "last_verified_at": "2026-08-25T18:56:24+00:00"
+      "last_verified_at": "2026-08-25T19:45:27+00:00"
     },
     {
       "hostname": "dilipnachna.blogspot.com",
@@ -52,7 +52,7 @@
       "verification_state": "current",
       "consecutive_failures": 0,
       "first_seen": "2026-08-17T16:45:04+00:00",
-      "last_verified_at": "2026-08-25T18:56:24+00:00"
+      "last_verified_at": "2026-08-25T19:45:27+00:00"
     },
     {
       "hostname": "netsurfaarogyam.blogspot.com",
@@ -65,7 +65,7 @@
       "verification_state": "current",
       "consecutive_failures": 0,
       "first_seen": "2026-08-17T16:45:04+00:00",
-      "last_verified_at": "2026-08-25T18:56:24+00:00"
+      "last_verified_at": "2026-08-25T19:45:27+00:00"
     },
     {
       "hostname": "sia-infinity.blogspot.com",
@@ -78,7 +78,7 @@
       "verification_state": "current",
       "consecutive_failures": 0,
       "first_seen": "2026-08-17T16:45:04+00:00",
-      "last_verified_at": "2026-08-25T18:56:24+00:00"
+      "last_verified_at": "2026-08-25T19:45:27+00:00"
     }
   ]
 }
