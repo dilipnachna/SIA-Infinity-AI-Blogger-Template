@@ -2,15 +2,15 @@
   "sia": {
     "format": "sia-blogger-community-registry",
     "version": "0.1",
-    "generated_at": "2026-09-01T10:05:41+00:00",
+    "generated_at": "2026-09-01T14:52:51+00:00",
     "root_repository": "dilipnachna/SIA-Infinity-AI-Blogger-Template",
     "mode": "opt-in-repository-bound-blogspot-verification",
     "verification_grace_hours": 72,
     "privacy": "No visitor telemetry. Membership is explicit in public sia.blogs.json and verified against live repository-bound SIA markers."
   },
   "verified_count": 5,
-  "current_verified_count": 0,
-  "grace_verified_count": 5,
+  "current_verified_count": 5,
+  "grace_verified_count": 0,
   "candidate_count": 5,
   "repository_count": 1,
   "source_registry_count": 1,
@@ -23,10 +23,10 @@
       "version": "0.1",
       "source_repository": "dilipnachna/SIA-Infinity-AI-Blogger-Template",
       "status": "verified",
-      "verification_state": "grace",
-      "consecutive_failures": 2,
+      "verification_state": "current",
+      "consecutive_failures": 0,
       "first_seen": "2026-08-17T16:45:04+00:00",
-      "last_verified_at": "2026-08-31T23:50:42+00:00"
+      "last_verified_at": "2026-09-01T14:52:51+00:00"
     },
     {
       "hostname": "bestbloginhindi.blogspot.com",
@@ -36,10 +36,10 @@
       "version": "0.1",
       "source_repository": "dilipnachna/SIA-Infinity-AI-Blogger-Template",
       "status": "verified",
-      "verification_state": "grace",
-      "consecutive_failures": 2,
+      "verification_state": "current",
+      "consecutive_failures": 0,
       "first_seen": "2026-08-17T16:45:04+00:00",
-      "last_verified_at": "2026-08-31T23:50:42+00:00"
+      "last_verified_at": "2026-09-01T14:52:51+00:00"
     },
     {
       "hostname": "dilipnachna.blogspot.com",
@@ -49,10 +49,10 @@
       "version": "0.1",
       "source_repository": "dilipnachna/SIA-Infinity-AI-Blogger-Template",
       "status": "verified",
-      "verification_state": "grace",
-      "consecutive_failures": 2,
+      "verification_state": "current",
+      "consecutive_failures": 0,
       "first_seen": "2026-08-17T16:45:04+00:00",
-      "last_verified_at": "2026-08-31T23:50:42+00:00"
+      "last_verified_at": "2026-09-01T14:52:51+00:00"
     },
     {
       "hostname": "netsurfaarogyam.blogspot.com",
@@ -62,10 +62,10 @@
       "version": "0.1",
       "source_repository": "dilipnachna/SIA-Infinity-AI-Blogger-Template",
       "status": "verified",
-      "verification_state": "grace",
-      "consecutive_failures": 2,
+      "verification_state": "current",
+      "consecutive_failures": 0,
       "first_seen": "2026-08-17T16:45:04+00:00",
-      "last_verified_at": "2026-08-31T23:50:42+00:00"
+      "last_verified_at": "2026-09-01T14:52:51+00:00"
     },
     {
       "hostname": "sia-infinity.blogspot.com",
@@ -75,10 +75,10 @@
       "version": "0.1",
       "source_repository": "dilipnachna/SIA-Infinity-AI-Blogger-Template",
       "status": "verified",
-      "verification_state": "grace",
-      "consecutive_failures": 2,
+      "verification_state": "current",
+      "consecutive_failures": 0,
       "first_seen": "2026-08-17T16:45:04+00:00",
-      "last_verified_at": "2026-08-31T23:50:42+00:00"
+      "last_verified_at": "2026-09-01T14:52:51+00:00"
     }
   ]
 }
